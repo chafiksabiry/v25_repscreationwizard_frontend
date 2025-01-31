@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import ImportDialog from './ImportDialog';
 import SummaryEditor from './SummaryEditor';
 import LinkedInCallback from './LinkedInCallback';
+import { Navigate } from 'react-router-dom';
 
 function App() {
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -42,7 +43,7 @@ function App() {
       <Routes>
         <Route path="/linkedin-callback" element={<LinkedInCallback />} />
         <Route
-          path="/"
+          path="/profile-wizard"
           element={
             <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
               <div className="max-w-4xl mx-auto">
@@ -111,6 +112,7 @@ function App() {
             </div>
           }
         />
+        <Route path="*" element={<Navigate to="/profile-wizard" replace />} />
       </Routes>
     </Router>
   );
