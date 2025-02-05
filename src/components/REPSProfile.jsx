@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 
 function REPSProfile({ assessmentResults, profileData }) {
+  console.log("assessmentResults : ", assessmentResults);
+  console.log("profileData : ", profileData);
   const [showFullProfile, setShowFullProfile] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [isPublic, setIsPublic] = useState(false);
@@ -62,11 +64,11 @@ function REPSProfile({ assessmentResults, profileData }) {
       {/* Profile Header */}
       <div className="h-48 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 relative">
         <div className="absolute inset-0 bg-black/20"></div>
-        
+
         {/* Profile Photo */}
         <div className="absolute -bottom-12 left-6">
           <div className="relative">
-            <div 
+            <div
               className="w-24 h-24 rounded-full border-4 border-white bg-gray-100 flex items-center justify-center overflow-hidden cursor-pointer"
               onClick={() => fileInputRef.current?.click()}
             >
@@ -86,7 +88,7 @@ function REPSProfile({ assessmentResults, profileData }) {
               onChange={handlePhotoUpload}
             />
             <div className="absolute -bottom-1 -right-1">
-              <button 
+              <button
                 className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
               >
@@ -172,16 +174,16 @@ function REPSProfile({ assessmentResults, profileData }) {
             <div key={language} className="bg-gradient-to-br from-blue-50 to-purple-50 p-4 rounded-xl">
               <div className="flex justify-between items-center mb-2">
                 <span className="font-medium text-gray-800">{language}</span>
-                <span className="text-sm font-semibold text-blue-600">{results.overall.score}%</span>
+                <span className="text-sm font-semibold text-blue-600">{(results.overall === null) ? 0 : results.overall.score}%</span>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Fluency</span>
-                  <span className="text-gray-800">{results.fluency.score}/10</span>
+                  <span className="text-gray-800">{(results.fluency === null) ? 0 : results.fluency.score}/100</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Pronunciation</span>
-                  <span className="text-gray-800">{results.pronunciation.score}/10</span>
+                  <span className="text-gray-800">{(results.pronunciation === null) ? 0 : results.pronunciation.score}/100</span>
                 </div>
               </div>
             </div>
