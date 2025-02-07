@@ -182,8 +182,8 @@ function REPSProfile({ assessmentResults, profileData }) {
                   <span className="text-gray-800">{(results.fluency === null) ? 0 : results.fluency.score}/100</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Pronunciation</span>
-                  <span className="text-gray-800">{(results.pronunciation === null) ? 0 : results.pronunciation.score}/100</span>
+                  <span className="text-gray-600">Proficiency</span>
+                  <span className="text-gray-800">{(results.proficiency === null) ? 0 : results.proficiency.score}/100</span>
                 </div>
               </div>
             </div>
