@@ -144,6 +144,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
   };
 
   const addLanguage = async () => {
+    console.log('editedProfile : ',editedProfile);
     if (tempLanguage.language.trim()) {
       try {
         const updatedLanguages = [
@@ -172,6 +173,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
   };
 
   const removeLanguage = async (index) => {
+    console.log('editedProfile : ',editedProfile);
     try {
       const updatedLanguages = editedProfile.personalInfo.languages.filter((_, i) => i !== index);
       
