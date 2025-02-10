@@ -28,6 +28,21 @@ export const useProfile = (profileId) => {
     }
   }, [profileId]);
 
+  const createProfile = async (profileData) => {
+    try {
+      setLoading(true);
+      const createdProfile = await profileApi.createProfile(profileData);
+      setProfile(createdProfile);
+      setError(null);
+      return createdProfile;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateBasicInfo = async (id, basicInfo) => {
     try {
       setLoading(true);
@@ -121,6 +136,7 @@ export const useProfile = (profileId) => {
     profile,
     loading,
     error,
+    createProfile,
     updateBasicInfo,
     updateExperience,
     updateSkills,

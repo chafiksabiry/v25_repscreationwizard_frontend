@@ -9,6 +9,15 @@ export const getProfile = async () => {
   }
 };
 
+export const createProfile = async (profileData) => {
+  try {
+    const { data } = await api.post('/profiles', profileData);
+    return data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 export const updateBasicInfo = async (id, basicInfo) => {
   try {
     const { data } = await api.put(`/profiles/${id}/basic-info`, basicInfo);
