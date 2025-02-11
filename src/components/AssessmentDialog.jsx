@@ -11,7 +11,8 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true
 });
 
-function AssessmentDialog({ isOpen, onClose, languages, profileData }) {
+function AssessmentDialog({ isOpen, onClose, languages, profileData, onProfileUpdate }) {
+  console.log('Profile Data :', profileData);
   const { profile, loading: profileLoading, error: profileError, updateLanguageAssessment, addAssessment } = useProfile();
   const [currentLanguage, setCurrentLanguage] = useState(0);
   const [assessmentResults, setAssessmentResults] = useState({});
@@ -25,12 +26,14 @@ function AssessmentDialog({ isOpen, onClose, languages, profileData }) {
   const handleLanguageAssessmentComplete = async (results) => {
     try {
       // Save language assessment results to the database
-      await updateLanguageAssessment(
-        profile._id,
+      console.log('updateLanguageAssessment body : ', languages[currentLanguage].language, results);
+
+      const updatedProfile = await updateLanguageAssessment(
+        profileData._id,
         languages[currentLanguage].language,
         results
       );
-
+      console.log("updatedProfile : ",updatedProfile);
       setAssessmentResults(prev => ({
         ...prev,
         languages: {
@@ -38,7 +41,12 @@ function AssessmentDialog({ isOpen, onClose, languages, profileData }) {
           [languages[currentLanguage].language]: results
         }
       }));
-      
+
+      // Update parent component's profileData
+      if (onProfileUpdate) {
+        onProfileUpdate(updatedProfile);
+      }
+
       setShowLanguageSummary(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
@@ -69,7 +77,7 @@ function AssessmentDialog({ isOpen, onClose, languages, profileData }) {
   const handleContactCenterAssessmentComplete = async (results) => {
     try {
       // Save contact center assessment results
-      await addAssessment(profile._id, {
+      await addAssessment(profileData._id, {
         type: 'contact-center',
         ...results
       });
@@ -160,120 +168,118 @@ function AssessmentDialog({ isOpen, onClose, languages, profileData }) {
             </button>
           </div>
 
-          {!showingProfile && 
-          (
-            <>
-              {/* Progress Indicator */}
-              <div className="sticky top-14 bg-white z-10 pb-4 mb-6">
-                <div className="flex items-center gap-2">
-                  <div className={`h-2 flex-1 rounded-full ${
-                    phase === 'language' ? 'bg-blue-600' : 'bg-green-500'
-                  }`} />
-                  <div className={`h-2 flex-1 rounded-full ${
-                    phase === 'contact-center' ? 'bg-blue-600' : 'bg-gray-200'
-                  }`} />
-                </div>
-                <div className="flex justify-between text-sm text-gray-500 mt-2">
-                  <span>Language Skills</span>
-                  <span>Contact Center Skills</span>
-                </div>
-              </div>
-
-              {/* Current Language Indicator */}
-              {phase === 'language' && (
-                <div className="mb-6 bg-blue-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-lg font-semibold text-blue-900">
-                        Testing: {languages[currentLanguage].language}
-                      </h3>
-                      <p className="text-sm text-blue-700">
-                        Language {currentLanguage + 1} of {languages.length}
-                      </p>
-                    </div>
-                    {currentLanguage > 0 && (
-                      <button
-                        onClick={handlePreviousLanguage}
-                        className="text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                        Previous Language
-                      </button>
-                    )}
+          {!showingProfile &&
+            (
+              <>
+                {/* Progress Indicator */}
+                <div className="sticky top-14 bg-white z-10 pb-4 mb-6">
+                  <div className="flex items-center gap-2">
+                    <div className={`h-2 flex-1 rounded-full ${phase === 'language' ? 'bg-blue-600' : 'bg-green-500'
+                      }`} />
+                    <div className={`h-2 flex-1 rounded-full ${phase === 'contact-center' ? 'bg-blue-600' : 'bg-gray-200'
+                      }`} />
+                  </div>
+                  <div className="flex justify-between text-sm text-gray-500 mt-2">
+                    <span>Language Skills</span>
+                    <span>Contact Center Skills</span>
                   </div>
                 </div>
-              )}
 
-              {/* Assessment Content */}
-              {phase === 'language' ? (
-                showLanguageSummary ? (
-                  <div className="space-y-6">
-                    <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6">
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">
-                        {languages[currentLanguage].language} Assessment Results
-                      </h3>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-700">Overall Score:</span>
-                          <span className="text-2xl font-bold text-blue-600">
-                            {assessmentResults.languages[languages[currentLanguage].language].overall.score}%
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {Object.entries(assessmentResults.languages[languages[currentLanguage].language])
-                            .filter(([key]) => key !== 'overall' &&  key !== 'languageCheck' && key !== 'languageOrTextMismatch')
-                            .map(([category, data]) => (
-                              <div key={category} className="flex justify-between items-center">
-                                <span className="text-gray-600 capitalize">{category}:</span>
-                                <span className="font-medium text-gray-800">{(data === null) ? 0 : data.score}/100</span>
-                              </div>
-                            ))}
-                        </div>
+                {/* Current Language Indicator */}
+                {phase === 'language' && (
+                  <div className="mb-6 bg-blue-50 p-4 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="text-lg font-semibold text-blue-900">
+                          Testing: {languages[currentLanguage].language}
+                        </h3>
+                        <p className="text-sm text-blue-700">
+                          Language {currentLanguage + 1} of {languages.length}
+                        </p>
                       </div>
-                      <div className="mt-6">
+                      {currentLanguage > 0 && (
                         <button
-                          onClick={handleNextLanguage}
-                          className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center gap-2"
+                          onClick={handlePreviousLanguage}
+                          className="text-blue-600 hover:text-blue-700 flex items-center gap-1"
                         >
-                          {currentLanguage < languages.length - 1 ? (
-                            <>
-                              <span>Continue to Next Language</span>
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                            </>
-                          ) : (
-                            <>
-                              <span>Continue to Contact Center Assessment</span>
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                              </svg>
-                            </>
-                          )}
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                          Previous Language
                         </button>
-                      </div>
+                      )}
                     </div>
                   </div>
+                )}
+
+                {/* Assessment Content */}
+                {phase === 'language' ? (
+                  showLanguageSummary ? (
+                    <div className="space-y-6">
+                      <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">
+                          {languages[currentLanguage].language} Assessment Results
+                        </h3>
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-700">Overall Score:</span>
+                            <span className="text-2xl font-bold text-blue-600">
+                              {assessmentResults.languages[languages[currentLanguage].language].overall.score}%
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {Object.entries(assessmentResults.languages[languages[currentLanguage].language])
+                              .filter(([key]) => key !== 'overall' && key !== 'languageCheck' && key !== 'languageOrTextMismatch')
+                              .map(([category, data]) => (
+                                <div key={category} className="flex justify-between items-center">
+                                  <span className="text-gray-600 capitalize">{category}:</span>
+                                  <span className="font-medium text-gray-800">{(data === null) ? 0 : data.score}/100</span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                        <div className="mt-6">
+                          <button
+                            onClick={handleNextLanguage}
+                            className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center gap-2"
+                          >
+                            {currentLanguage < languages.length - 1 ? (
+                              <>
+                                <span>Continue to Next Language</span>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </>
+                            ) : (
+                              <>
+                                <span>Continue to Contact Center Assessment</span>
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                </svg>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <LanguageAssessment
+                      language={languages[currentLanguage].language}
+                      onComplete={handleLanguageAssessmentComplete}
+                    />
+                  )
                 ) : (
-                  <LanguageAssessment
-                    language={languages[currentLanguage].language}
-                    onComplete={handleLanguageAssessmentComplete}
+                  <ContactCenterAssessment
+                    onComplete={handleContactCenterAssessmentComplete}
                   />
-                )
-              ) : (
-                <ContactCenterAssessment
-                  onComplete={handleContactCenterAssessmentComplete}
-                />
-              )}
-            </>
-          )
-          /* (
-            <ContactCenterAssessment
-              onComplete={handleContactCenterAssessmentComplete}
-            />
-          ) */
+                )}
+              </>
+            )
+            /* (
+              <ContactCenterAssessment
+                onComplete={handleContactCenterAssessmentComplete}
+              />
+            ) */
           }
 
           {showingProfile && finalRecommendations && (

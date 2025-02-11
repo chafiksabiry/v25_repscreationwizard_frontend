@@ -74,3 +74,12 @@ export const deleteProfile = async () => {
     throw error.response?.data || error;
   }
 };
+
+export const updateProfile = async (id, profileData) => {
+  try {
+    const response = await api.put(`/profiles/${id}`, profileData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};

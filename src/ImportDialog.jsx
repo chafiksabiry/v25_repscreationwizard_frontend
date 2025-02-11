@@ -333,8 +333,9 @@ function ImportDialog({ isOpen, onClose, onImport }) {
       setProgress(100);
       
       // Create profile in database and get MongoDB document
+      console.log('Data to store in DB : ',combinedData);
       const createdProfile = await createProfile(combinedData);
-      onImport(createdProfile);
+      onImport({ ...createdProfile, generatedSummary: summary });
       
       //onImport({ ...combinedData, generatedSummary: summary });
 

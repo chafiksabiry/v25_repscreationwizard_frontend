@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AssessmentDialog from './components/AssessmentDialog';
 import { useProfile } from './hooks/useProfile';
 import openaiClient from './lib/ai/openaiClient';
 
-function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
-  const { profile, loading: profileLoading, error: profileError, updateBasicInfo, updateExperience, updateSkills } = useProfile();
+function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onProfileUpdate}) {
+  const { profile, loading: profileLoading, error: profileError, updateBasicInfo, updateExperience, updateSkills, updateProfileData } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
+  console.log("generatedSummary : ", generatedSummary);
   const [editedSummary, setEditedSummary] = useState('');
   const [loading, setLoading] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -15,15 +16,34 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
   const [tempCompany, setTempCompany] = useState('');
   const [showAssessment, setShowAssessment] = useState(false);
 
+  useEffect(() => {
+    if (generatedSummary) {
+      setEditedSummary(generatedSummary);
+    }
+  }, [generatedSummary]);
+
+  useEffect(() => {
+    if (profileData) {
+      setEditedProfile(profileData);
+    }
+  }, [profileData]);
+
+  // Handle profile updates from AssessmentDialog
+  const handleAssessmentUpdate = (updatedProfile) => {
+    setEditedProfile(updatedProfile);
+    if (onProfileUpdate) {
+      onProfileUpdate(updatedProfile);
+    }
+  };
+
   const handleProfileChange = async (field, value) => {
     try {
       const updatedPersonalInfo = {
         ...editedProfile.personalInfo,
         [field]: value
       };
-      
       await updateBasicInfo(editedProfile._id, updatedPersonalInfo);
-      
+
       setEditedProfile(prev => ({
         ...prev,
         personalInfo: updatedPersonalInfo
@@ -40,9 +60,8 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
           ...(editedProfile.professionalSummary.industries || []),
           tempIndustry
         ];
-        
-        await updateBasicInfo(editedProfile._id, {
-          ...editedProfile.personalInfo,
+        console.log("updated industries :", updatedIndustries);
+        await updateProfileData(editedProfile._id, {
           professionalSummary: {
             ...editedProfile.professionalSummary,
             industries: updatedIndustries
@@ -56,7 +75,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
             industries: updatedIndustries
           }
         }));
-        
+
         setTempIndustry('');
       } catch (error) {
         console.error('Error adding industry:', error);
@@ -67,9 +86,8 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
   const removeIndustry = async (index) => {
     try {
       const updatedIndustries = editedProfile.professionalSummary.industries.filter((_, i) => i !== index);
-      
-      await updateBasicInfo(editedProfile._id, {
-        ...editedProfile.personalInfo,
+
+      await updateProfileData(editedProfile._id, {
         professionalSummary: {
           ...editedProfile.professionalSummary,
           industries: updatedIndustries
@@ -95,9 +113,8 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
           ...(editedProfile.professionalSummary.notableCompanies || []),
           tempCompany
         ];
-        
-        await updateBasicInfo(editedProfile._id, {
-          ...editedProfile.personalInfo,
+
+        await updateProfileData(editedProfile._id, {
           professionalSummary: {
             ...editedProfile.professionalSummary,
             notableCompanies: updatedCompanies
@@ -111,7 +128,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
             notableCompanies: updatedCompanies
           }
         }));
-        
+
         setTempCompany('');
       } catch (error) {
         console.error('Error adding company:', error);
@@ -122,9 +139,8 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
   const removeCompany = async (index) => {
     try {
       const updatedCompanies = editedProfile.professionalSummary.notableCompanies.filter((_, i) => i !== index);
-      
-      await updateBasicInfo(editedProfile._id, {
-        ...editedProfile.personalInfo,
+
+      await updateProfileData(editedProfile._id, {
         professionalSummary: {
           ...editedProfile.professionalSummary,
           notableCompanies: updatedCompanies
@@ -144,14 +160,14 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
   };
 
   const addLanguage = async () => {
-    console.log('editedProfile : ',editedProfile);
+    console.log('editedProfile : ', editedProfile);
     if (tempLanguage.language.trim()) {
       try {
         const updatedLanguages = [
           ...editedProfile.personalInfo.languages,
           { ...tempLanguage }
         ];
-        
+
         await updateBasicInfo(editedProfile._id, {
           ...editedProfile.personalInfo,
           languages: updatedLanguages
@@ -164,7 +180,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
             languages: updatedLanguages
           }
         }));
-        
+
         setTempLanguage({ language: '', proficiency: 'Intermediate' });
       } catch (error) {
         console.error('Error adding language:', error);
@@ -173,10 +189,10 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
   };
 
   const removeLanguage = async (index) => {
-    console.log('editedProfile : ',editedProfile);
+    console.log('editedProfile : ', editedProfile);
     try {
       const updatedLanguages = editedProfile.personalInfo.languages.filter((_, i) => i !== index);
-      
+
       await updateBasicInfo(editedProfile._id, {
         ...editedProfile.personalInfo,
         languages: updatedLanguages
@@ -408,7 +424,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
               {editingProfile ? '💾 Save Profile' : '✏️ Edit Profile'}
             </button>
           </div>
-          
+
           {/* Profile Overview */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {editingProfile ? (
@@ -596,6 +612,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
         onClose={() => setShowAssessment(false)}
         languages={editedProfile.personalInfo.languages}
         profileData={editedProfile}
+        onProfileUpdate={handleAssessmentUpdate}
       />
     </div>
   );

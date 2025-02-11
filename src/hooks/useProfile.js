@@ -58,6 +58,21 @@ export const useProfile = (profileId) => {
     }
   };
 
+  const updateProfileData = async (id, profileData) => {
+    try {
+      setLoading(true);
+      const updatedProfile = await profileApi.updateProfile(id, profileData);
+      setProfile(updatedProfile);
+      setError(null);
+      return updatedProfile;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateExperience = async (id, experience) => {
     try {
       setLoading(true);
@@ -92,6 +107,7 @@ export const useProfile = (profileId) => {
     try {
       setLoading(true);
       const updatedProfile = await profileApi.updateLanguageAssessment(id, language, results);
+      console.log('updatedProfile after api call : ', updatedProfile);
       setProfile(updatedProfile);
       setError(null);
       return updatedProfile;
@@ -141,6 +157,7 @@ export const useProfile = (profileId) => {
     updateExperience,
     updateSkills,
     updateLanguageAssessment,
+    updateProfileData,
     addAssessment,
     deleteProfile
   };
