@@ -17,8 +17,8 @@ const skillCategories = [
     skills: [
       { name: "Active Listening", description: "Ability to fully concentrate, understand, and respond to customers" },
       { name: "Clear Speech", description: "Speaking clearly and professionally" },
-      /*{ name: "Empathy", description: "Understanding and sharing customer feelings" },
-      { name: "Tone Management", description: "Maintaining appropriate tone in different situations" } */
+      { name: "Empathy", description: "Understanding and sharing customer feelings" },
+      { name: "Tone Management", description: "Maintaining appropriate tone in different situations" }
     ]
   },
   {
@@ -27,8 +27,8 @@ const skillCategories = [
     skills: [
       { name: "Issue Analysis", description: "Identifying root causes of problems" },
       { name: "Solution Finding", description: "Developing effective solutions" },
-      /*    { name: "Decision Making", description: "Making appropriate choices under pressure" },
-          { name: "Resource Utilization", description: "Using available tools and resources effectively" } */
+      { name: "Decision Making", description: "Making appropriate choices under pressure" },
+      { name: "Resource Utilization", description: "Using available tools and resources effectively" }
     ]
   },
   {
@@ -37,8 +37,8 @@ const skillCategories = [
     skills: [
       { name: "Service Orientation", description: "Putting customer needs first" },
       { name: "Conflict Resolution", description: "Handling difficult situations professionally" },
-      /*  { name: "Product Knowledge", description: "Understanding and explaining products/services" },
-        { name: "Quality Assurance", description: "Maintaining service standards" } */
+      { name: "Product Knowledge", description: "Understanding and explaining products/services" },
+      { name: "Quality Assurance", description: "Maintaining service standards" }
     ]
   }
 ];
