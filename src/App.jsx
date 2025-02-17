@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import ImportDialog from './ImportDialog';
 import SummaryEditor from './SummaryEditor';
 import LinkedInCallback from './LinkedInCallback';
 import RepsProfile from './components/REPSProfile'
 import { Navigate } from 'react-router-dom';
+import api from './lib/api/client';
 
 function App() {
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -35,8 +36,46 @@ function App() {
   });
   const [generatedSummary, setGeneratedSummary] = useState('');
 
+  useEffect(() => {
+    const initializeToken = async () => {
+      // Check if token exists
+      const existingToken = localStorage.getItem('token');
+      if (existingToken) {
+        console.log("token already exists in local storage : ", existingToken)
+        return;
+      }
+
+      try {
+        // Generate a temporary userId if not exists
+        let userId = null;
+        if (!localStorage.getItem('userId')) {
+          console.log("set a new userId")
+          localStorage.setItem('userId', "67a22959828197bb180caa59");
+        }
+        userId = localStorage.getItem('userId');
+
+        // Generate token
+        const { data } = await api.post('/auth/generate-token', {
+          userId: userId
+        });
+
+        console.log("tokenResult : ", data)
+        if (data?.token) {
+          localStorage.setItem('token', data.token);
+        }
+      } catch (error) {
+        console.error('Failed to initialize token:', error.message);
+      }
+    };
+
+    initializeToken();
+  }, []);
+
+
   const handleProfileData = (data) => {
-    setProfileData(data);
+    const { generatedSummary, ...profileInfo } = data;
+    setProfileData(profileInfo);
+    setGeneratedSummary(generatedSummary || '');
   };
 
   return (
@@ -102,6 +141,7 @@ function App() {
                     profileData={profileData}
                     generatedSummary={generatedSummary}
                     setGeneratedSummary={setGeneratedSummary}
+                    onProfileUpdate={handleProfileData}
                   />
                 )}
 

@@ -1,16 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import OpenAI from 'openai';
 import AssessmentDialog from './components/AssessmentDialog';
+import { useProfile } from './hooks/useProfile';
+import openaiClient from './lib/ai/openaiClient';
 
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true
-});
-
-function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
-  console.log('Summaryeditor profileData :',profileData);
-  console.log('Summaryeditor generatedSummary :',generatedSummary);
+function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onProfileUpdate}) {
+  const { profile, loading: profileLoading, error: profileError, updateBasicInfo, updateExperience, updateSkills, updateProfileData } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
+  console.log("generatedSummary : ", generatedSummary);
   const [editedSummary, setEditedSummary] = useState('');
   const [loading, setLoading] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -21,116 +17,218 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
   const [showAssessment, setShowAssessment] = useState(false);
 
   useEffect(() => {
-    if (profileData?.generatedSummary) {
-      setGeneratedSummary(profileData.generatedSummary);
-      setEditedSummary(profileData.generatedSummary);
+    if (generatedSummary) {
+      setEditedSummary(generatedSummary);
     }
-    setEditedProfile(profileData);
+  }, [generatedSummary]);
+
+  useEffect(() => {
+    if (profileData) {
+      setEditedProfile(profileData);
+    }
   }, [profileData]);
 
-  const handleProfileChange = (field, value) => {
-    setEditedProfile(prev => ({
-      ...prev,
-      personalInfo: {
-        ...prev.personalInfo,
+  // Handle profile updates from AssessmentDialog
+  const handleAssessmentUpdate = (updatedProfile) => {
+    setEditedProfile(updatedProfile);
+    if (onProfileUpdate) {
+      onProfileUpdate(updatedProfile);
+    }
+  };
+
+  const handleProfileChange = async (field, value) => {
+    try {
+      const updatedPersonalInfo = {
+        ...editedProfile.personalInfo,
         [field]: value
-      }
-    }));
+      };
+      await updateBasicInfo(editedProfile._id, updatedPersonalInfo);
+
+      setEditedProfile(prev => ({
+        ...prev,
+        personalInfo: updatedPersonalInfo
+      }));
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    }
   };
 
-  const addIndustry = () => {
+  const addIndustry = async () => {
     if (tempIndustry.trim()) {
+      try {
+        const updatedIndustries = [
+          ...(editedProfile.professionalSummary.industries || []),
+          tempIndustry
+        ];
+        console.log("updated industries :", updatedIndustries);
+        await updateProfileData(editedProfile._id, {
+          professionalSummary: {
+            ...editedProfile.professionalSummary,
+            industries: updatedIndustries
+          }
+        });
+
+        setEditedProfile(prev => ({
+          ...prev,
+          professionalSummary: {
+            ...prev.professionalSummary,
+            industries: updatedIndustries
+          }
+        }));
+
+        setTempIndustry('');
+      } catch (error) {
+        console.error('Error adding industry:', error);
+      }
+    }
+  };
+
+  const removeIndustry = async (index) => {
+    try {
+      const updatedIndustries = editedProfile.professionalSummary.industries.filter((_, i) => i !== index);
+
+      await updateProfileData(editedProfile._id, {
+        professionalSummary: {
+          ...editedProfile.professionalSummary,
+          industries: updatedIndustries
+        }
+      });
+
       setEditedProfile(prev => ({
         ...prev,
         professionalSummary: {
           ...prev.professionalSummary,
-          industries: [...(prev.professionalSummary.industries || []), tempIndustry]
+          industries: updatedIndustries
         }
       }));
-      setTempIndustry('');
+    } catch (error) {
+      console.error('Error removing industry:', error);
     }
   };
 
-  const removeIndustry = (index) => {
-    setEditedProfile(prev => ({
-      ...prev,
-      professionalSummary: {
-        ...prev.professionalSummary,
-        industries: prev.professionalSummary.industries.filter((_, i) => i !== index)
-      }
-    }));
-  };
-
-  const addCompany = () => {
+  const addCompany = async () => {
     if (tempCompany.trim()) {
+      try {
+        const updatedCompanies = [
+          ...(editedProfile.professionalSummary.notableCompanies || []),
+          tempCompany
+        ];
+
+        await updateProfileData(editedProfile._id, {
+          professionalSummary: {
+            ...editedProfile.professionalSummary,
+            notableCompanies: updatedCompanies
+          }
+        });
+
+        setEditedProfile(prev => ({
+          ...prev,
+          professionalSummary: {
+            ...prev.professionalSummary,
+            notableCompanies: updatedCompanies
+          }
+        }));
+
+        setTempCompany('');
+      } catch (error) {
+        console.error('Error adding company:', error);
+      }
+    }
+  };
+
+  const removeCompany = async (index) => {
+    try {
+      const updatedCompanies = editedProfile.professionalSummary.notableCompanies.filter((_, i) => i !== index);
+
+      await updateProfileData(editedProfile._id, {
+        professionalSummary: {
+          ...editedProfile.professionalSummary,
+          notableCompanies: updatedCompanies
+        }
+      });
+
       setEditedProfile(prev => ({
         ...prev,
         professionalSummary: {
           ...prev.professionalSummary,
-          notableCompanies: [...(prev.professionalSummary.notableCompanies || []), tempCompany]
+          notableCompanies: updatedCompanies
         }
       }));
-      setTempCompany('');
+    } catch (error) {
+      console.error('Error removing company:', error);
     }
   };
 
-  const removeCompany = (index) => {
-    setEditedProfile(prev => ({
-      ...prev,
-      professionalSummary: {
-        ...prev.professionalSummary,
-        notableCompanies: prev.professionalSummary.notableCompanies.filter((_, i) => i !== index)
+  const addLanguage = async () => {
+    console.log('editedProfile : ', editedProfile);
+    if (tempLanguage.language.trim()) {
+      try {
+        const updatedLanguages = [
+          ...editedProfile.personalInfo.languages,
+          { ...tempLanguage }
+        ];
+
+        await updateBasicInfo(editedProfile._id, {
+          ...editedProfile.personalInfo,
+          languages: updatedLanguages
+        });
+
+        setEditedProfile(prev => ({
+          ...prev,
+          personalInfo: {
+            ...prev.personalInfo,
+            languages: updatedLanguages
+          }
+        }));
+
+        setTempLanguage({ language: '', proficiency: 'Intermediate' });
+      } catch (error) {
+        console.error('Error adding language:', error);
       }
-    }));
+    }
   };
 
-  const addLanguage = () => {
-    if (tempLanguage.language.trim()) {
+  const removeLanguage = async (index) => {
+    console.log('editedProfile : ', editedProfile);
+    try {
+      const updatedLanguages = editedProfile.personalInfo.languages.filter((_, i) => i !== index);
+
+      await updateBasicInfo(editedProfile._id, {
+        ...editedProfile.personalInfo,
+        languages: updatedLanguages
+      });
+
       setEditedProfile(prev => ({
         ...prev,
         personalInfo: {
           ...prev.personalInfo,
-          languages: [...prev.personalInfo.languages, { ...tempLanguage }]
+          languages: updatedLanguages
         }
       }));
-      setTempLanguage({ language: '', proficiency: 'Intermediate' });
+    } catch (error) {
+      console.error('Error removing language:', error);
     }
-  };
-
-  const removeLanguage = (index) => {
-    setEditedProfile(prev => ({
-      ...prev,
-      personalInfo: {
-        ...prev.personalInfo,
-        languages: prev.personalInfo.languages.filter((_, i) => i !== index)
-      }
-    }));
   };
 
   const regenerateSummary = async () => {
     try {
       setLoading(true);
-      const response = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: `You are a professional CV writer with a knack for creating engaging, memorable summaries. Create a compelling professional summary that follows the REPS framework while maintaining a confident, energetic tone:
-            - Role: Current position and career focus (with a touch of personality)
-            - Experience: Years of experience and key industries (highlight the journey)
-            - Projects: Notable achievements and contributions (make them shine)
-            - Skills: Core technical and professional competencies (show expertise with style)
-            
-            Keep the summary concise, impactful, and achievement-oriented while letting the person's unique value proposition shine through.`
-          },
-          {
-            role: "user",
-            content: `Create a fresh, engaging REPS summary based on this profile data: ${JSON.stringify(editedProfile)}`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
-      });
+      const response = await openaiClient.createChatCompletion([
+        {
+          role: "system",
+          content: `You are a professional CV writer with a knack for creating engaging, memorable summaries. Create a compelling professional summary that follows the REPS framework while maintaining a confident, energetic tone:
+          - Role: Current position and career focus (with a touch of personality)
+          - Experience: Years and experience and key industries (highlight the journey)
+          - Projects: Notable achievements and contributions (make them shine)
+          - Skills: Core technical and professional competencies (show expertise with style)
+          
+          Keep the summary concise, impactful, and achievement-oriented while letting the person's unique value proposition shine through.`
+        },
+        {
+          role: "user",
+          content: `Create a fresh, engaging REPS summary based on this profile data: ${JSON.stringify(editedProfile)}`
+        }
+      ]);
 
       const newSummary = response.choices[0].message.content;
       setGeneratedSummary(newSummary);
@@ -326,7 +424,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
               {editingProfile ? '💾 Save Profile' : '✏️ Edit Profile'}
             </button>
           </div>
-          
+
           {/* Profile Overview */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {editingProfile ? (
@@ -514,6 +612,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary }) {
         onClose={() => setShowAssessment(false)}
         languages={editedProfile.personalInfo.languages}
         profileData={editedProfile}
+        onProfileUpdate={handleAssessmentUpdate}
       />
     </div>
   );

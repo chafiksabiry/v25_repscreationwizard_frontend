@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { getProfile, saveProfile, deleteProfile } from '../lib/api/profiles';
+import * as profileApi from '../lib/api/profiles';
 
-export const useProfile = () => {
+export const useProfile = (profileId) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -10,8 +10,9 @@ export const useProfile = () => {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        const data = await getProfile();
+        const data = await profileApi.getProfile(profileId);
         setProfile(data);
+        setError(null);
       } catch (err) {
         console.error('Error fetching profile:', err);
         setError(err.message);
@@ -20,21 +21,21 @@ export const useProfile = () => {
       }
     };
 
-    if (localStorage.getItem('token')) {
+    if (profileId) {
       fetchProfile();
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [profileId]);
 
-  const handleSaveProfile = async (profileData) => {
+  const createProfile = async (profileData) => {
     try {
       setLoading(true);
-      const updatedProfile = await saveProfile(profileData);
-      setProfile(updatedProfile);
-      return updatedProfile;
+      const createdProfile = await profileApi.createProfile(profileData);
+      setProfile(createdProfile);
+      setError(null);
+      return createdProfile;
     } catch (err) {
-      console.error('Error saving profile:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -42,13 +43,120 @@ export const useProfile = () => {
     }
   };
 
-  const handleDeleteProfile = async () => {
+  const updateBasicInfo = async (id, basicInfo) => {
     try {
       setLoading(true);
-      await deleteProfile();
-      setProfile(null);
+      const updatedProfile = await profileApi.updateBasicInfo(id, basicInfo);
+      setProfile(updatedProfile);
+      setError(null);
+      return updatedProfile;
     } catch (err) {
-      console.error('Error deleting profile:', err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateProfileData = async (id, profileData) => {
+    try {
+      setLoading(true);
+      const updatedProfile = await profileApi.updateProfile(id, profileData);
+      setProfile(updatedProfile);
+      setError(null);
+      return updatedProfile;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateExperience = async (id, experience) => {
+    try {
+      setLoading(true);
+      const updatedProfile = await profileApi.updateExperience(id, experience);
+      setProfile(updatedProfile);
+      setError(null);
+      return updatedProfile;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSkills = async (id, skills) => {
+    try {
+      setLoading(true);
+      const updatedProfile = await profileApi.updateSkills(id, skills);
+      setProfile(updatedProfile);
+      setError(null);
+      return updatedProfile;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateLanguageAssessment = async (id, language, results) => {
+    try {
+      setLoading(true);
+      const updatedProfile = await profileApi.updateLanguageAssessment(id, language, results);
+      console.log('updatedProfile after api call : ', updatedProfile);
+      setProfile(updatedProfile);
+      setError(null);
+      return updatedProfile;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addAssessment = async (id, assessment) => {
+    try {
+      setLoading(true);
+      const updatedProfile = await profileApi.addAssessment(id, assessment);
+      setProfile(updatedProfile);
+      setError(null);
+      return updatedProfile;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteProfile = async (id) => {
+    try {
+      setLoading(true);
+      await profileApi.deleteProfile(id);
+      setProfile(null);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add new function to the hook
+  const addContactCenterAssessment = async (id, assessment) => {
+    try {
+      setLoading(true);
+      const updatedProfile = await profileApi.addContactCenterAssessment(id, assessment);
+      setProfile(updatedProfile);
+      setError(null);
+      return updatedProfile;
+    } catch (err) {
       setError(err.message);
       throw err;
     } finally {
@@ -60,7 +168,14 @@ export const useProfile = () => {
     profile,
     loading,
     error,
-    saveProfile: handleSaveProfile,
-    deleteProfile: handleDeleteProfile
+    createProfile,
+    updateBasicInfo,
+    updateExperience,
+    updateSkills,
+    updateLanguageAssessment,
+    updateProfileData,
+    addAssessment,
+    deleteProfile,
+    addContactCenterAssessment
   };
 };

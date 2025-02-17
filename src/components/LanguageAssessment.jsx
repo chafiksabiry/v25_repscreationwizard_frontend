@@ -2,9 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { getReadingPassage } from '../utils/languageUtils';
 import { analyzeRecordingVertex, uploadRecording } from '../lib/api/vertex';
 import OpenAI from 'openai';
-import { gapi } from "gapi-script";
-import axios from "axios";
-//const keys = require('../../qauth2.keys.json');
+import { useProfile } from '../hooks/useProfile';
 
 
 const openai = new OpenAI({
@@ -12,9 +10,9 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true
 });
 
-//console.log("QAuth2 keys : ", keys);
 
 function LanguageAssessment({ language, onComplete }) {
+  const { profile, loading: profileLoading, error: profileError, updateLanguageAssessment } = useProfile();
   const [recording, setRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -141,6 +139,14 @@ function LanguageAssessment({ language, onComplete }) {
       const response = await analyzeRecordingVertex(data);
       console.log("Deno :", response);
       const assessmentResults = response;
+      // Save language assessment results to the database
+      if (profile?._id) {
+        try {
+          await updateLanguageAssessment(profile._id, language, assessmentResults);
+        } catch (error) {
+          console.error('Error saving language assessment:', error);
+        }
+      }
       setResults(assessmentResults);
       setPreviousScores(prev => [...prev, assessmentResults.overall.score]);
     } catch (error) {

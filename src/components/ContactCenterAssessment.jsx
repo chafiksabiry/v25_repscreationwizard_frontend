@@ -43,7 +43,7 @@ const skillCategories = [
   }
 ];
 
-function ContactCenterAssessment({ onComplete }) {
+function ContactCenterAssessment({ saveResults, onComplete }) {
   const [started, setStarted] = useState(false);
   const [categoryIndex, setCategoryIndex] = useState(0);
   const [currentSkill, setCurrentSkill] = useState(0);
@@ -59,6 +59,7 @@ function ContactCenterAssessment({ onComplete }) {
   const [micPermission, setMicPermission] = useState(false);
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
+  const [savingError, setSavingError] = useState(null);
 
   useEffect(() => {
     if (started && !scenario) {
@@ -232,7 +233,13 @@ function ContactCenterAssessment({ onComplete }) {
       setResponse(transcriptionResult.transcription);
       const response = await analyzeContentCenterSkill(data);
       console.log('ContactCenter analysis response : ', response);
-      const feedback = response.data;
+      //const feedback = response.data;
+      // Add category and skill information to feedback
+      const feedback = {
+        ...response.data,
+        category: currentCategory.name,
+        skill: skill.name
+      };
       setFeedback(feedback);
       setScores(prev => ({
         ...prev,
@@ -292,8 +299,18 @@ function ContactCenterAssessment({ onComplete }) {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     const currentCategory = skillCategories[categoryIndex];
+    // Save the current skill assessment before moving to next
+    if (feedback) {
+      try {
+        await saveResults(feedback);
+      } catch (error) {
+        console.error('Error saving assessment:', error);
+        setSavingError('Failed to save assessment results. Please try again.');
+        return; // Don't proceed if save fails
+      }
+    }
     setFeedback(null);
     setScenario(null);
     setResponse('');
@@ -332,6 +349,73 @@ function ContactCenterAssessment({ onComplete }) {
     completedSkills += currentSkill;
     return (completedSkills / totalSkills) * 100;
   };
+
+  const calculateScoresPerCategory = (scores) => {
+    const categoryScores = {};
+
+    skillCategories.forEach((category) => {
+      let totalScore = 0;
+      let skillCount = 0;
+
+      category.skills.forEach((skill) => {
+        const skillKey = `${category.name}-${skill.name}`; // Match keys in scores object
+        if (scores[skillKey]) {
+          totalScore += scores[skillKey].score; // Add skill score if it exists
+          skillCount += 1;
+        }
+      });
+
+      // Calculate the average if there are skills in this category
+      if (skillCount > 0) {
+        categoryScores[category.name] = {
+          score: totalScore / skillCount
+        };
+      } else {
+        categoryScores[category.name] = {
+          score: 0 // Default score if no skills found
+        };
+      }
+    });
+
+    return categoryScores;
+  };
+
+  /* const calculateCategoryScores = (scores) => {
+    console.log("scroes : ", scores);
+
+
+
+    let categoryTotals = {};
+    let categoryCounts = {};
+
+    // Iterate through the scores object
+    Object.keys(scores).forEach(key => {
+      console.log("key :", key);
+      const [category, skill] = key.split('-'); // Extract category from the key
+      const { score } = scores[key];
+
+      if (!categoryTotals[category]) {
+        categoryTotals[category] = 0;
+        categoryCounts[category] = 0;
+      }
+      categoryTotals[category] += score;
+      categoryCounts[category] += 1;
+      console.log('categoryTotals :', categoryTotals);
+      console.log('categoryCounts :', categoryCounts);
+
+    });
+
+    // Construct and return the contactCenter object directly
+    const contactCenter = {};
+
+    Object.keys(categoryTotals).forEach(category => {
+      contactCenter[category] = {
+        score: categoryTotals[category] / categoryCounts[category]
+      };
+    });
+    console.log('contactCenetr object :', contactCenter);
+    return contactCenter;
+  }; */
 
   if (!started) {
     return (
@@ -437,7 +521,7 @@ function ContactCenterAssessment({ onComplete }) {
           ))}
 
           <button
-            onClick={() => onComplete(scores)}
+            onClick={() => onComplete(calculateScoresPerCategory(scores))}
             className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center gap-2"
           >
             <span>Complete Assessment</span>

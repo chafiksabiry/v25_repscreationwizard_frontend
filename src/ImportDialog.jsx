@@ -3,6 +3,8 @@ import { Dialog } from '@headlessui/react';
 import OpenAI from 'openai';
 import { CVParser } from './lib/parsers/cvParser';
 import { LinkedInClient } from './lib/linkedin/linkedinClient';
+import { useProfile } from './hooks/useProfile';
+
 import { chunkText, safeJSONParse, retryOperation } from './lib/utils/textProcessing';
 
 const openai = new OpenAI({
@@ -11,6 +13,7 @@ const openai = new OpenAI({
 });
 
 function ImportDialog({ isOpen, onClose, onImport }) {
+  const { createProfile } = useProfile();
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -56,11 +59,11 @@ function ImportDialog({ isOpen, onClose, onImport }) {
       setShowGuidance(false);
       const cvParser = new CVParser();
       const extractedText = await cvParser.parse(file);
-      
+
       if (!extractedText || extractedText.trim().length === 0) {
         throw new Error('No text could be extracted from the file');
       }
-      
+
       setText(extractedText);
       setError('');
       setProgress(100);
@@ -119,7 +122,7 @@ function ImportDialog({ isOpen, onClose, onImport }) {
     setProgress(0);
     setCurrentStep(3);
     setAnalysisSteps([]);
-    
+
     try {
       const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
       if (!apiKey) {
@@ -131,7 +134,7 @@ function ImportDialog({ isOpen, onClose, onImport }) {
       }
 
       addAnalysisStep("Starting CV analysis...");
-      
+
       // Initial analysis to extract basic information
       const basicInfoResponse = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
@@ -329,10 +332,16 @@ function ImportDialog({ isOpen, onClose, onImport }) {
       addAnalysisStep("Analysis complete!");
       setProgress(100);
       
-      onImport({ ...combinedData, generatedSummary: summary });
-      console.log("combinedData : " ,combinedData);
-      console.log("summary : " ,summary);
+      // Create profile in database and get MongoDB document
+      console.log('Data to store in DB : ',combinedData);
+      const createdProfile = await createProfile(combinedData);
+      onImport({ ...createdProfile, generatedSummary: summary });
       
+      //onImport({ ...combinedData, generatedSummary: summary });
+
+      console.log("createdProfile : ", createdProfile);
+      console.log("summary : ", summary);
+
       onClose();
     } catch (err) {
       console.error('Profile parsing error:', err);
@@ -349,7 +358,7 @@ function ImportDialog({ isOpen, onClose, onImport }) {
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <Dialog.Panel className="bg-white rounded-lg p-6 w-full max-w-2xl">
           <Dialog.Title className="text-2xl font-bold mb-4 text-gray-900">Import Your Professional Profile</Dialog.Title>
-          
+
           {showGuidance && (
             <div className="mb-8">
               <div className="bg-blue-50 p-6 rounded-xl mb-6">
@@ -381,7 +390,7 @@ function ImportDialog({ isOpen, onClose, onImport }) {
                 className="w-full px-4 py-3 text-white bg-[#0077b5] rounded-lg hover:bg-[#006097] transition-colors flex items-center justify-center space-x-2 shadow-sm hover:shadow-md"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/>
+                  <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z" />
                 </svg>
                 <span>Connect with LinkedIn</span>
               </button>
@@ -396,9 +405,8 @@ function ImportDialog({ isOpen, onClose, onImport }) {
               </div>
 
               <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all duration-200 ${
-                  uploadSuccess ? 'border-green-500 bg-green-50' : 'hover:border-blue-500 hover:bg-blue-50'
-                }`}
+                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all duration-200 ${uploadSuccess ? 'border-green-500 bg-green-50' : 'hover:border-blue-500 hover:bg-blue-50'
+                  }`}
                 onClick={() => fileInputRef.current?.click()}
               >
                 <input
@@ -454,7 +462,7 @@ function ImportDialog({ isOpen, onClose, onImport }) {
             {loading && (
               <div className="space-y-3">
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500"
                     style={{ width: `${progress}%` }}
                   />
@@ -473,9 +481,8 @@ function ImportDialog({ isOpen, onClose, onImport }) {
                     {analysisSteps.map((step, index) => (
                       <div
                         key={index}
-                        className={`text-sm ${
-                          step.error ? 'text-red-600' : 'text-gray-600'
-                        }`}
+                        className={`text-sm ${step.error ? 'text-red-600' : 'text-gray-600'
+                          }`}
                       >
                         {step.text}
                       </div>

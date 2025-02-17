@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 
 function REPSProfile({ assessmentResults, profileData }) {
-  console.log("assessmentResults : ", assessmentResults);
+  console.log("assessmentResults in REPSProfile: ", assessmentResults);
   console.log("profileData : ", profileData);
   const [showFullProfile, setShowFullProfile] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState(null);
@@ -49,15 +49,15 @@ function REPSProfile({ assessmentResults, profileData }) {
   // Safely get scores with fallback values
   const getScore = (category) => {
     try {
-      return Math.round((assessmentResults.contactCenter?.[category]?.score || 0) * 10);
+      return Math.round((assessmentResults.contactCenter?.[category]?.score || 0));
     } catch (error) {
       return 0;
     }
   };
 
-  const communicationScore = getScore('communication');
-  const problemSolvingScore = getScore('problemSolving');
-  const customerServiceScore = getScore('customerService');
+  const communicationScore = getScore("Communication");
+  const problemSolvingScore = getScore("Problem Solving");
+  const customerServiceScore = getScore("Customer Service");
 
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
@@ -182,8 +182,8 @@ function REPSProfile({ assessmentResults, profileData }) {
                   <span className="text-gray-800">{(results.fluency === null) ? 0 : results.fluency.score}/100</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Pronunciation</span>
-                  <span className="text-gray-800">{(results.pronunciation === null) ? 0 : results.pronunciation.score}/100</span>
+                  <span className="text-gray-600">Proficiency</span>
+                  <span className="text-gray-800">{(results.proficiency === null) ? 0 : results.proficiency.score}/100</span>
                 </div>
               </div>
             </div>
@@ -195,8 +195,10 @@ function REPSProfile({ assessmentResults, profileData }) {
       <div className="px-6 pb-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-3">Key Skills</h2>
         <div className="flex flex-wrap gap-2">
-          {(assessmentResults.contactCenter?.keySkills || []).map((skill, index) => (
-            renderSkillBadge(skill.name, skill.proficiency)
+          {(assessmentResults.keySkills || []).map((skill, index) => (
+            <div key={`skill-${index}`}>
+              {renderSkillBadge(skill.name, skill.proficiency)}
+            </div>
           ))}
         </div>
       </div>
