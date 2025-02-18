@@ -3,7 +3,7 @@ import AssessmentDialog from './components/AssessmentDialog';
 import { useProfile } from './hooks/useProfile';
 import openaiClient from './lib/ai/openaiClient';
 
-function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onProfileUpdate}) {
+function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onProfileUpdate }) {
   const { profile, loading: profileLoading, error: profileError, updateBasicInfo, updateExperience, updateSkills, updateProfileData } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
   console.log("generatedSummary : ", generatedSummary);
@@ -15,6 +15,18 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
   const [tempIndustry, setTempIndustry] = useState('');
   const [tempCompany, setTempCompany] = useState('');
   const [showAssessment, setShowAssessment] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({
+    languages: '',
+    industries: '',
+    companies: '',
+    name: '',
+    location: '',
+    email: '',
+    phone: '',
+    currentRole: '',
+    yearsExperience: ''
+  });
+
 
   useEffect(() => {
     if (generatedSummary) {
@@ -28,6 +40,68 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
     }
   }, [profileData]);
 
+  const validateProfile = () => {
+    const errors = {};
+
+    // Email validation regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // Phone validation regex - accepts various formats with optional country code
+    const phoneRegex = /^\+?[\d\s-]{10,}$/;
+
+    // Validate languages (at least one required)
+    if (!editedProfile.personalInfo.languages?.length) {
+      errors.languages = 'At least one language is required';
+    }
+
+    // Validate name
+    if (!editedProfile.personalInfo.name?.trim()) {
+      errors.name = 'Name is required';
+    }
+
+    // Validate location
+    if (!editedProfile.personalInfo.location?.trim()) {
+      errors.location = 'Location is required';
+    }
+
+    // Validate email
+    if (!editedProfile.personalInfo.email?.trim()) {
+      errors.email = 'Email is required';
+    } else if (!emailRegex.test(editedProfile.personalInfo.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    // Validate phone
+    if (!editedProfile.personalInfo.phone?.trim()) {
+      errors.phone = 'Phone number is required';
+    } else if (!phoneRegex.test(editedProfile.personalInfo.phone.replace(/\s+/g, ''))) {
+      errors.phone = 'Please enter a valid phone number';
+    }
+
+    // Validate current role
+    if (!editedProfile.professionalSummary.currentRole?.trim()) {
+      errors.currentRole = 'Current role is required';
+    }
+
+    // Validate years of experience
+    if (!editedProfile.professionalSummary.yearsOfExperience?.trim()) {
+      errors.yearsExperience = 'Years of experience is required';
+    }
+
+    // Validate industries (at least one required)
+    if (!editedProfile.professionalSummary.industries?.length) {
+      errors.industries = 'At least one industry is required';
+    }
+
+    // Validate notable companies (at least one required)
+    if (!editedProfile.professionalSummary.notableCompanies?.length) {
+      errors.companies = 'At least one notable company is required';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   // Handle profile updates from AssessmentDialog
   const handleAssessmentUpdate = (updatedProfile) => {
     setEditedProfile(updatedProfile);
@@ -36,23 +110,165 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
     }
   };
 
-  const handleProfileChange = async (field, value) => {
+  /*  const handleProfileChange = async (field, value) => {
+     try {
+       // Update the profile state immediately
+       const updatedPersonalInfo = {
+         ...editedProfile.personalInfo,
+         [field]: value
+       };
+ 
+       const updatedProfile = {
+         ...editedProfile,
+         personalInfo: updatedPersonalInfo
+       };
+ 
+       setEditedProfile(updatedProfile);
+ 
+       // Show validation error if field is empty
+       if (!value.trim()) {
+         setValidationErrors(prev => ({
+           ...prev,
+           [field]: `${field.charAt(0).toUpperCase() + field.slice(1)} is required`
+         }));
+       } else {
+         // Clear validation error if field has value
+         setValidationErrors(prev => ({
+           ...prev,
+           [field]: ''
+         }));
+ 
+         // Update backend
+         await updateBasicInfo(editedProfile._id, updatedPersonalInfo);
+       }
+     } catch (error) {
+       console.error('Error updating profile:', error);
+     }
+   }; */
+  const handleProfileChanges = async (field, value) => {
     try {
+      // Update the profile state immediately
       const updatedPersonalInfo = {
         ...editedProfile.personalInfo,
         [field]: value
       };
-      await updateBasicInfo(editedProfile._id, updatedPersonalInfo);
 
-      setEditedProfile(prev => ({
-        ...prev,
+      const updatedProfile = {
+        ...editedProfile,
         personalInfo: updatedPersonalInfo
+      };
+
+      setEditedProfile(updatedProfile);
+
+      // Validation rules
+      const validations = {
+        name: (val) => val.trim() ? '' : 'Name is required',
+        location: (val) => val.trim() ? '' : 'Location is required',
+        email: (val) => {
+          if (!val.trim()) return 'Email is required';
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          return emailRegex.test(val) ? '' : 'Please enter a valid email address';
+        },
+        phone: (val) => {
+          if (!val.trim()) return 'Phone is required';
+          const phoneRegex = /^\+?[\d\s-]{10,}$/;
+          return phoneRegex.test(val) ? '' : 'Please enter a valid phone number';
+        }
+      };
+
+      // Get the appropriate validation function or use a default one
+      const validateField = validations[field] || ((val) => val.trim() ? '' : `${field.charAt(0).toUpperCase() + field.slice(1)} is required`);
+
+      // Run validation
+      const validationError = validateField(value);
+
+      // Update validation errors
+      setValidationErrors(prev => ({
+        ...prev,
+        [field]: validationError
       }));
+      console.log('validation error :', validationError)
+      // Only update backend if there are no validation errors
+      if (!validationError && value.trim()) {
+        await updateBasicInfo(editedProfile._id, updatedPersonalInfo);
+      }
     } catch (error) {
       console.error('Error updating profile:', error);
     }
   };
 
+  const handleProfileChange = async (field, value) => {
+    try {
+      // Update the profile state immediately for UI responsiveness
+      const updatedPersonalInfo = {
+        ...editedProfile.personalInfo,
+        [field]: value
+      };
+  
+      const updatedProfile = {
+        ...editedProfile,
+        personalInfo: updatedPersonalInfo
+      };
+  
+      setEditedProfile(updatedProfile);
+  
+      // Validation rules
+      const validations = {
+        name: (val) => val.trim() ? '' : 'Name is required',
+        location: (val) => val.trim() ? '' : 'Location is required',
+        email: (val) => {
+          if (!val.trim()) return 'Email is required';
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          return emailRegex.test(val) ? '' : 'Please enter a valid email address';
+        },
+        phone: (val) => {
+          if (!val.trim()) return 'Phone is required';
+          const phoneRegex = /^\+?[\d\s-]{10,}$/;
+          return phoneRegex.test(val) ? '' : 'Please enter a valid phone number';
+        }
+      };
+  
+      // Get the appropriate validation function or use a default one
+      const validateField = validations[field] || ((val) => val.trim() ? '' : `${field.charAt(0).toUpperCase() + field.slice(1)} is required`);
+  
+      // Run validation
+      const validationError = validateField(value);
+  
+      // Update validation errors state
+      setValidationErrors(prev => ({
+        ...prev,
+        [field]: validationError
+      }));
+  
+      // Only update backend if there are no validation errors AND all required fields are filled
+      const requiredFields = ['name', 'location', 'email', 'phone'];
+      const currentValues = {
+        ...editedProfile.personalInfo,
+        [field]: value
+      };
+  
+      // Check if all required fields are valid
+      const allFieldsValid = requiredFields.every(fieldName => {
+        const fieldValue = currentValues[fieldName];
+        const fieldValidation = validations[fieldName] || ((val) => val.trim() ? '' : 'Required');
+        return !fieldValidation(fieldValue);
+      });
+  
+      if (allFieldsValid) {
+        await updateBasicInfo(editedProfile._id, updatedPersonalInfo);
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      // Optionally revert the UI state if the update fails
+      setEditedProfile(prev => ({
+        ...prev,
+        personalInfo: {
+          ...prev.personalInfo
+        }
+      }));
+    }
+  };
+  
   const addIndustry = async () => {
     if (tempIndustry.trim()) {
       try {
@@ -161,36 +377,49 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
 
   const addLanguage = async () => {
     console.log('editedProfile : ', editedProfile);
-    if (tempLanguage.language.trim()) {
-      try {
-        const updatedLanguages = [
-          ...editedProfile.personalInfo.languages,
-          { ...tempLanguage }
-        ];
+    if (!tempLanguage.language.trim()) {
+      setValidationErrors(prev => ({
+        ...prev,
+        languages: 'Language name is required'
+      }));
+      return;
+    }
+    try {
+      const updatedLanguages = [
+        ...editedProfile.personalInfo.languages,
+        { ...tempLanguage }
+      ];
 
-        await updateBasicInfo(editedProfile._id, {
-          ...editedProfile.personalInfo,
+      await updateBasicInfo(editedProfile._id, {
+        ...editedProfile.personalInfo,
+        languages: updatedLanguages
+      });
+
+      setEditedProfile(prev => ({
+        ...prev,
+        personalInfo: {
+          ...prev.personalInfo,
           languages: updatedLanguages
-        });
+        }
+      }));
 
-        setEditedProfile(prev => ({
-          ...prev,
-          personalInfo: {
-            ...prev.personalInfo,
-            languages: updatedLanguages
-          }
-        }));
-
-        setTempLanguage({ language: '', proficiency: 'Intermediate' });
-      } catch (error) {
-        console.error('Error adding language:', error);
-      }
+      setTempLanguage({ language: '', proficiency: 'Intermediate' });
+      setValidationErrors(prev => ({ ...prev, languages: '' }));
+    } catch (error) {
+      console.error('Error adding language:', error);
     }
   };
 
   const removeLanguage = async (index) => {
     console.log('editedProfile : ', editedProfile);
     try {
+      if (editedProfile.personalInfo.languages.length <= 1) {
+        setValidationErrors(prev => ({
+          ...prev,
+          languages: 'At least one language is required'
+        }));
+        return;
+      }
       const updatedLanguages = editedProfile.personalInfo.languages.filter((_, i) => i !== index);
 
       await updateBasicInfo(editedProfile._id, {
@@ -242,7 +471,30 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
   };
 
   const pushToRepsProfile = () => {
-    setShowAssessment(true);
+    if (validateProfile()) {
+      setShowAssessment(true);
+    } else {
+      // Scroll to the first error
+      const firstError = Object.keys(validationErrors)[0];
+      const errorElement = document.getElementById(`error-${firstError}`);
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    //setShowAssessment(true);
+  };
+
+  // Render validation error message
+  const renderError = (error, id) => {
+    if (!error) return null;
+    return (
+      <div id={`error-${id}`} className="text-red-600 text-sm mt-1 flex items-center gap-1">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        {error}
+      </div>
+    );
   };
 
   const renderSkillSection = (title, skills) => (
@@ -418,7 +670,12 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-3xl font-bold text-gray-900">Your Professional Story ✨</h2>
             <button
-              onClick={() => setEditingProfile(!editingProfile)}
+              onClick={() => {
+                if (!editingProfile) {
+                  setValidationErrors(prev => ({ ...prev, languages: '' }));
+                }
+                setEditingProfile(!editingProfile)
+              }}
               className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors duration-200"
             >
               {editingProfile ? '💾 Save Profile' : '✏️ Edit Profile'}
@@ -438,6 +695,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
                     className="w-full p-2 border rounded-md bg-white/50"
                     placeholder="Enter your name"
                   />
+                  {renderError(validationErrors.name, 'name')}
                 </div>
                 <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
                   <h3 className="text-sm font-medium text-gray-500 mb-2">📍 Location</h3>
@@ -448,6 +706,29 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
                     className="w-full p-2 border rounded-md bg-white/50"
                     placeholder="Enter your location"
                   />
+                  {renderError(validationErrors.location, 'location')}
+                </div>
+                <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">📧 Email</h3>
+                  <input
+                    type="email"
+                    value={editedProfile.personalInfo.email}
+                    onChange={(e) => handleProfileChange('email', e.target.value)}
+                    className="w-full p-2 border rounded-md bg-white/50"
+                    placeholder="Enter your email"
+                  />
+                  {renderError(validationErrors.email, 'email')}
+                </div>
+                <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">📱 Phone</h3>
+                  <input
+                    type="tel"
+                    value={editedProfile.personalInfo.phone}
+                    onChange={(e) => handleProfileChange('phone', e.target.value)}
+                    className="w-full p-2 border rounded-md bg-white/50"
+                    placeholder="Enter your phone number"
+                  />
+                  {renderError(validationErrors.phone, 'phone')}
                 </div>
                 <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl col-span-2">
                   <h3 className="text-sm font-medium text-gray-500 mb-2">🌍 Languages</h3>
@@ -467,6 +748,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
                         </div>
                       ))}
                     </div>
+                    {renderError(validationErrors.languages, 'languages')}
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -500,10 +782,22 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
                 <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
                   <h3 className="text-sm font-medium text-gray-500 mb-2">👤 Name</h3>
                   <p className="text-xl font-semibold text-gray-800">{editedProfile.personalInfo.name || 'Not specified'}</p>
+                  {renderError(validationErrors.name, 'name')}
                 </div>
                 <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
                   <h3 className="text-sm font-medium text-gray-500 mb-2">📍 Location</h3>
                   <p className="text-xl font-semibold text-gray-800">{editedProfile.personalInfo.location || 'Not specified'}</p>
+                  {renderError(validationErrors.location, 'location')}
+                </div>
+                <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">📧 Email</h3>
+                  <p className="text-xl font-semibold text-gray-800">{editedProfile.personalInfo.email || 'Not specified'}</p>
+                  {renderError(validationErrors.email, 'email')}
+                </div>
+                <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">📱 Phone</h3>
+                  <p className="text-xl font-semibold text-gray-800">{editedProfile.personalInfo.phone || 'Not specified'}</p>
+                  {renderError(validationErrors.phone, 'phone')}
                 </div>
                 <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
                   <h3 className="text-sm font-medium text-gray-500 mb-2">🌍 Languages</h3>
@@ -517,10 +811,12 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
                       </span>
                     ))}
                   </div>
+                  {/* {renderError(validationErrors.languages, 'languages')} */}
                 </div>
                 <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
                   <h3 className="text-sm font-medium text-gray-500 mb-2">⭐ Experience</h3>
                   <p className="text-xl font-semibold text-gray-800">{editedProfile.professionalSummary.yearsOfExperience || 'Not specified'}</p>
+                  {renderError(validationErrors.yearsExperience, 'yearsExperience')}
                 </div>
               </>
             )}

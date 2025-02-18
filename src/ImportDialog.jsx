@@ -237,6 +237,10 @@ function ImportDialog({ isOpen, onClose, onImport }) {
       });
 
       const skills = JSON.parse(skillsResponse.choices[0].message.content);
+      console.log("languages extracted :", skills.languages);
+      if (skills.languages.length === 0) {
+        throw new Error('Languages section is required to generate your profile. Please ensure your CV includes the languages you speak.');
+      }
       addAnalysisStep("Skills categorized");
       setProgress(60);
 
@@ -331,12 +335,12 @@ function ImportDialog({ isOpen, onClose, onImport }) {
       const summary = await generateSummary(combinedData);
       addAnalysisStep("Analysis complete!");
       setProgress(100);
-      
+
       // Create profile in database and get MongoDB document
-      console.log('Data to store in DB : ',combinedData);
+      console.log('Data to store in DB : ', combinedData);
       const createdProfile = await createProfile(combinedData);
       onImport({ ...createdProfile, generatedSummary: summary });
-      
+
       //onImport({ ...combinedData, generatedSummary: summary });
 
       console.log("createdProfile : ", createdProfile);
