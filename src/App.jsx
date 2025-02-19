@@ -39,11 +39,11 @@ function App() {
   useEffect(() => {
     const initializeToken = async () => {
       // Check if token exists
-      const existingToken = localStorage.getItem('token');
-      if (existingToken) {
-        console.log("token already exists in local storage : ", existingToken)
-        return;
-      }
+      /*       const existingToken = localStorage.getItem('token');
+            if (existingToken) {
+              console.log("token already exists in local storage : ", existingToken)
+              return;
+            } */
 
       try {
         // Generate a temporary userId if not exists
