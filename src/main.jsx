@@ -70,4 +70,5 @@ if (!qiankunWindow.__POWERED_BY_QIANKUN__) {
   render({});
 } else {
   console.log('[App3] Running inside Qiankun');
+  render({})
 }
