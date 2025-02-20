@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           format: 'umd',
-          name: 'app1',
+          name: 'app3',
           entryFileNames: 'index.js', // Fixed name for the JS entry file
           chunkFileNames: 'chunk-[name].js', // Fixed name for chunks
           assetFileNames: (assetInfo) => {
