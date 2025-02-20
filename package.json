@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build" :"vite build --mode qiankun",
+    "build": "vite build --mode qiankun",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
@@ -13,7 +13,7 @@
     "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@headlessui/react": "^1.7.17",
-    "axios": "^1.6.2",
+    "axios": "^1.6.7",
     "date-fns": "^2.30.0",
     "gapi-script": "^1.2.0",
     "mammoth": "^1.6.0",
@@ -21,20 +21,21 @@
     "pdfjs-dist": "^3.11.174",
     "qiankun": "^2.10.16",
     "query-string": "^8.1.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.1",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "react-router-dom": "^7.1.5",
+    "cheerio": "^1.0.0",
     "systemjs": "^6.15.1",
     "vite-plugin-qiankun": "^1.0.15"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.6",
-    "@types/react": "^18.2.15",
-    "@types/react-dom": "^18.2.7",
-    "@vitejs/plugin-react": "^4.0.3",
-    "autoprefixer": "^10.4.14",
-    "postcss": "^8.4.27",
-    "tailwindcss": "^3.3.3",
-    "vite": "^4.4.5"
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.18",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "vite": "^5.4.2"
   }
 }
