@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://api-repcreationwizard.harx.ai';
+const API_URL = import.meta.env.VITE_API_URL || 'https://api-repcreationwizard.harx.ai/api';
 
 const api = axios.create({
   baseURL: API_URL,
