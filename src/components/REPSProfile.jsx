@@ -24,6 +24,7 @@ function REPSProfile({ assessmentResults, profileData }) {
     setIsPublic(true);
     // Here you would typically make an API call to publish the profile
     alert('Your profile is now visible to companies! 🚀');
+    window.location.href = '/app8';
   };
 
   const renderScoreCard = (title, score, color) => (
