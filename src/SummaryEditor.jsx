@@ -251,6 +251,13 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
           tempIndustry
         ];
         console.log("updated industries :", updatedIndustries);
+        
+        // Clear the industry validation error since we're adding one
+        setValidationErrors(prev => ({
+          ...prev,
+          industries: ''
+        }));
+
         await updateProfileData(editedProfile._id, {
           professionalSummary: {
             ...editedProfile.professionalSummary,
@@ -276,6 +283,14 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
   const removeIndustry = async (index) => {
     try {
       const updatedIndustries = editedProfile.professionalSummary.industries.filter((_, i) => i !== index);
+
+      // Set validation error if removing the last industry
+      if (updatedIndustries.length === 0) {
+        setValidationErrors(prev => ({
+          ...prev,
+          industries: 'At least one industry is required'
+        }));
+      }
 
       await updateProfileData(editedProfile._id, {
         professionalSummary: {
@@ -304,6 +319,12 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
           tempCompany
         ];
 
+        // Clear the companies validation error since we're adding one
+        setValidationErrors(prev => ({
+          ...prev,
+          companies: ''
+        }));
+
         await updateProfileData(editedProfile._id, {
           professionalSummary: {
             ...editedProfile.professionalSummary,
@@ -329,6 +350,14 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
   const removeCompany = async (index) => {
     try {
       const updatedCompanies = editedProfile.professionalSummary.notableCompanies.filter((_, i) => i !== index);
+
+      // Set validation error if removing the last company
+      if (updatedCompanies.length === 0) {
+        setValidationErrors(prev => ({
+          ...prev,
+          companies: 'At least one notable company is required'
+        }));
+      }
 
       await updateProfileData(editedProfile._id, {
         professionalSummary: {
@@ -551,6 +580,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
                   </div>
                 ))}
               </div>
+              {renderError(validationErrors.industries, 'industries')}
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -585,6 +615,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
                   </div>
                 ))}
               </div>
+              {renderError(validationErrors.companies, 'companies')}
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -617,6 +648,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
                 </span>
               ))}
             </div>
+            {renderError(validationErrors.industries, 'industries')}
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -631,6 +663,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
                 </span>
               ))}
             </div>
+            {renderError(validationErrors.companies, 'companies')}
           </div>
         </div>
       )}
