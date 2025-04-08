@@ -479,6 +479,13 @@ function ContactCenterAssessment({ saveResults, onComplete, profileData }) {
   const progress = getTotalProgress();
 
   if (showingSummary) {
+    // Calculate if all skills have been assessed
+    const allSkillsAssessed = skillCategories.every(category =>
+      category.skills.every(skill =>
+        scores[`${category.name}-${skill.name}`] !== undefined
+      )
+    );
+
     return (
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -524,9 +531,18 @@ function ContactCenterAssessment({ saveResults, onComplete, profileData }) {
             </div>
           ))}
 
+          {!allSkillsAssessed && (
+            <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-4 mb-6">
+              <p className="text-yellow-700">
+                Please complete all skill assessments before proceeding.
+              </p>
+            </div>
+          )}
+
           <button
             onClick={() => onComplete(calculateScoresPerCategory(scores))}
-            className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center gap-2"
+            disabled={!allSkillsAssessed}
+            className={`w-full mt-6 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center gap-2 ${!allSkillsAssessed ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <span>Complete Assessment</span>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

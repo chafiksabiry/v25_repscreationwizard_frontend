@@ -114,24 +114,16 @@ function AssessmentDialog({ isOpen, onClose, languages, profileData, onProfileUp
     console.log('handleContactCenterAssessmentComplete param:', results);
     try {
       // Update the assessment results state with the new structure
-      setAssessmentResults(prev => {
-        const updatedResult = {
-          ...prev,
-          contactCenter: Object.entries(results).reduce((acc, [category, categoryResults]) => ({
-            ...acc,
-            ...Object.entries(categoryResults).reduce((skillAcc, [skill, skillData]) => ({
-              ...skillAcc,
-              [skill]: {
-                category,
-                ...skillData,
-                proficiency: mapScoreToProficiency(skillData.score)
-              }
-            }), {})
-          }), {})
-        };
-        console.log("Updated assessmentResults:", updatedResult);
-        return updatedResult;
-      });
+      const updatedResult = {
+        ...assessmentResults,
+        contactCenter: results
+      };
+      
+      setAssessmentResults(updatedResult);
+      
+      // Generate recommendations and show profile when all assessments are complete
+      await generateFinalRecommendations(updatedResult);
+      
     } catch (error) {
       console.error('Error handling contact center assessment completion:', error);
     }
@@ -197,13 +189,6 @@ function AssessmentDialog({ isOpen, onClose, languages, profileData, onProfileUp
       setAnalyzing(false);
     }
   };
-
-  useEffect(() => {
-    if (assessmentResults.contactCenter) { // Ensure contactCenter exists before calling
-      console.log("Assessment Results Updated:", assessmentResults);
-      generateFinalRecommendations(assessmentResults);
-    }
-  }, [assessmentResults]);
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
