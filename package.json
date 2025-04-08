@@ -17,6 +17,8 @@
     "cheerio": "^1.0.0",
     "date-fns": "^2.30.0",
     "gapi-script": "^1.2.0",
+    "js-cookie": "^3.0.5",
+    "js-cookies": "^1.0.4",
     "mammoth": "^1.6.0",
     "openai": "^4.0.0",
     "pdfjs-dist": "^3.11.174",

@@ -6,7 +6,7 @@ import LinkedInCallback from './LinkedInCallback';
 import RepsProfile from './components/REPSProfile'
 import { Navigate } from 'react-router-dom';
 import api from './lib/api/client';
-
+import Cookies from 'js-cookie';
 function App() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -47,12 +47,12 @@ function App() {
 
       try {
         // Generate a temporary userId if not exists
-        let userId = null;
-        if (!localStorage.getItem('userId')) {
+        let userId = Cookies.get('userId')
+        /*if (!localStorage.getItem('userId')) {
           console.log("set a new userId")
           localStorage.setItem('userId', "67a22959828197bb180caa59");
-        }
-        userId = localStorage.getItem('userId');
+        }*/
+        console.log("Verified saved user ID from cookie:", userId);
 
         // Generate token
         const { data } = await api.post('/auth/generate-token', {
