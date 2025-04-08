@@ -156,6 +156,7 @@ export const useProfile = (profileId) => {
   const addContactCenterAssessment = async (id, assessment) => {
     try {
       setLoading(true);
+      // Send the assessment data directly since it's already in the correct format
       const updatedProfile = await profileApi.addContactCenterAssessment(id, assessment);
       setProfile(updatedProfile);
       setError(null);

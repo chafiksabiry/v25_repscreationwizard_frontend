@@ -77,50 +77,72 @@ function AssessmentDialog({ isOpen, onClose, languages, profileData, onProfileUp
   };
 
   const saveContactCenterAssessmentResult = async (results) => {
-    console.log('saveContactCenterAssessmentResult param :', results);
+    console.log('saveContactCenterAssessmentResult param:', results);
     try {
-      /*       setAssessmentResults(prev => ({
-              contactCenter: {...results}
-            }));
-            console.log("assessmentResults :", assessmentResults) */
-      let contactCenterBody = {
-        assessment: {
-          category: results.category,
-          skill: results.skill,
-          score: results.score,
-          strengths: results.strengths,
-          improvements: results.improvements,
-          feedback: results.feedback,
-          tips: results.tips,
-          keyMetrics: results.keyMetrics
-        }
-      };
-      // Store results in database
-      const addContactCenterAssessmentResult = await addContactCenterAssessment(profileData._id, contactCenterBody);
-      console.log("addContactCenterAssessmentResult : ", addContactCenterAssessmentResult);
+      // Send results directly to the backend
+      const updatedProfile = await addContactCenterAssessment(profileData._id, results);
+      console.log("Updated profile after assessment:", updatedProfile);
+
       // Update parent component's profileData
       if (onProfileUpdate) {
-        onProfileUpdate(addContactCenterAssessmentResult);
+        onProfileUpdate(updatedProfile);
       }
+
+      // Update local state with the new assessment results
+      setAssessmentResults(prev => ({
+        ...prev,
+        contactCenter: {
+          ...prev.contactCenter,
+          [results.skill]: {
+            category: results.category,
+            score: results.score,
+            proficiency: mapScoreToProficiency(results.score),
+            strengths: results.strengths,
+            improvements: results.improvements,
+            feedback: results.feedback,
+            tips: results.tips,
+            keyMetrics: results.keyMetrics
+          }
+        }
+      }));
     } catch (error) {
       console.error('Error saving contact center assessment:', error);
     }
   };
 
   const handleContactCenterAssessmentComplete = async (results) => {
-    console.log('handleContactCenterAssessmentComplete param :', results);
+    console.log('handleContactCenterAssessmentComplete param:', results);
     try {
-      console.log("assessmentResults in handleContactCenterAssessmentComplete before :", assessmentResults)
+      // Update the assessment results state with the new structure
       setAssessmentResults(prev => {
-        const updatedResult = { ...prev, contactCenter: results };
-        console.log("Updated assessmentResults inside setState:", updatedResult);
-        return updatedResult; // Correctly returns the new state
+        const updatedResult = {
+          ...prev,
+          contactCenter: Object.entries(results).reduce((acc, [category, categoryResults]) => ({
+            ...acc,
+            ...Object.entries(categoryResults).reduce((skillAcc, [skill, skillData]) => ({
+              ...skillAcc,
+              [skill]: {
+                category,
+                ...skillData,
+                proficiency: mapScoreToProficiency(skillData.score)
+              }
+            }), {})
+          }), {})
+        };
+        console.log("Updated assessmentResults:", updatedResult);
+        return updatedResult;
       });
-      //console.log("updatedResult :", updatedResult)
-      //await generateFinalRecommendations(updatedResult);
     } catch (error) {
-      console.error('Error saving contact center assessment:', error);
+      console.error('Error handling contact center assessment completion:', error);
     }
+  };
+
+  const mapScoreToProficiency = (score) => {
+    if (score >= 90) return 'Expert';
+    if (score >= 75) return 'Advanced';
+    if (score >= 60) return 'Intermediate';
+    if (score >= 40) return 'Basic';
+    return 'Novice';
   };
 
   const generateFinalRecommendations = async (results) => {

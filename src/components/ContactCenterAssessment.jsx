@@ -43,7 +43,7 @@ const skillCategories = [
   }
 ];
 
-function ContactCenterAssessment({ saveResults, onComplete }) {
+function ContactCenterAssessment({ saveResults, onComplete, profileData }) {
   const [started, setStarted] = useState(false);
   const [categoryIndex, setCategoryIndex] = useState(0);
   const [currentSkill, setCurrentSkill] = useState(0);
@@ -210,6 +210,14 @@ function ContactCenterAssessment({ saveResults, onComplete }) {
     }
   };
 
+  const mapScoreToProficiency = (score) => {
+    if (score >= 95) return 'Expert';
+    if (score >= 80) return 'Advanced';
+    if (score >= 65) return 'Intermediate';
+    if (score >= 50) return 'Upper Beginner';
+    if (score >= 35) return 'Beginner';
+    return 'Novice';
+  };
 
   const analyzeRecord = async () => {
     setAnalyzing(true);
@@ -219,7 +227,6 @@ function ContactCenterAssessment({ saveResults, onComplete }) {
       //upload first the audio
       const formData = new FormData();
       const file = new File([audioBlob], `audio-${Date.now()}.opus`, { type: "audio/opus" });
-      console.log('file :', file);
       formData.append('file', file);
       formData.append('destinationName', `audio-${Date.now()}.opus`);
       const res = await uploadRecording(formData);
@@ -229,17 +236,22 @@ function ContactCenterAssessment({ saveResults, onComplete }) {
         "scenarioData": scenario
       }
       const transcriptionResult = await generateAudioTranscription(res.data.fileUri);
-      console.log("transcriptionResult :", transcriptionResult);
       setResponse(transcriptionResult.transcription);
       const response = await analyzeContentCenterSkill(data);
-      console.log('ContactCenter analysis response : ', response);
-      //const feedback = response.data;
-      // Add category and skill information to feedback
+
+      // Add category, skill, and proficiency information
       const feedback = {
-        ...response.data,
         category: currentCategory.name,
-        skill: skill.name
+        skill: skill.name,
+        score: response.data.score,
+        proficiency: mapScoreToProficiency(response.data.score),
+        strengths: response.data.strengths,
+        improvements: response.data.improvements,
+        feedback: response.data.feedback,
+        tips: response.data.tips,
+        keyMetrics: response.data.keyMetrics
       };
+      
       setFeedback(feedback);
       setScores(prev => ({
         ...prev,
@@ -356,23 +368,37 @@ function ContactCenterAssessment({ saveResults, onComplete }) {
     skillCategories.forEach((category) => {
       let totalScore = 0;
       let skillCount = 0;
+      const skillResults = [];
 
       category.skills.forEach((skill) => {
-        const skillKey = `${category.name}-${skill.name}`; // Match keys in scores object
+        const skillKey = `${category.name}-${skill.name}`;
         if (scores[skillKey]) {
-          totalScore += scores[skillKey].score; // Add skill score if it exists
+          const skillData = scores[skillKey];
+          totalScore += skillData.score;
           skillCount += 1;
+          skillResults.push({
+            skill: skill.name,
+            score: skillData.score,
+            proficiency: skillData.proficiency,
+            feedback: skillData.feedback,
+            keyMetrics: skillData.keyMetrics
+          });
         }
       });
 
-      // Calculate the average if there are skills in this category
+      // Calculate the average and include detailed results
       if (skillCount > 0) {
+        const averageScore = totalScore / skillCount;
         categoryScores[category.name] = {
-          score: totalScore / skillCount
+          score: averageScore,
+          proficiency: mapScoreToProficiency(averageScore),
+          skillResults: skillResults
         };
       } else {
         categoryScores[category.name] = {
-          score: 0 // Default score if no skills found
+          score: 0,
+          proficiency: 'Not Assessed',
+          skillResults: []
         };
       }
     });
@@ -380,42 +406,20 @@ function ContactCenterAssessment({ saveResults, onComplete }) {
     return categoryScores;
   };
 
-  /* const calculateCategoryScores = (scores) => {
-    console.log("scroes : ", scores);
-
-
-
-    let categoryTotals = {};
-    let categoryCounts = {};
-
-    // Iterate through the scores object
-    Object.keys(scores).forEach(key => {
-      console.log("key :", key);
-      const [category, skill] = key.split('-'); // Extract category from the key
-      const { score } = scores[key];
-
-      if (!categoryTotals[category]) {
-        categoryTotals[category] = 0;
-        categoryCounts[category] = 0;
-      }
-      categoryTotals[category] += score;
-      categoryCounts[category] += 1;
-      console.log('categoryTotals :', categoryTotals);
-      console.log('categoryCounts :', categoryCounts);
-
-    });
-
-    // Construct and return the contactCenter object directly
-    const contactCenter = {};
-
-    Object.keys(categoryTotals).forEach(category => {
-      contactCenter[category] = {
-        score: categoryTotals[category] / categoryCounts[category]
-      };
-    });
-    console.log('contactCenetr object :', contactCenter);
-    return contactCenter;
-  }; */
+  // Add function to get current proficiency level
+  const getCurrentProficiency = (category, skillName) => {
+    if (!profileData?.skills?.contactCenter) return null;
+    
+    const skill = profileData.skills.contactCenter.find(
+      s => s.category === category && s.skill === skillName
+    );
+    
+    return skill ? {
+      proficiency: skill.proficiency,
+      score: skill.assessmentResults.score,
+      lastAssessed: skill.assessmentResults.completedAt
+    } : null;
+  };
 
   if (!started) {
     return (
@@ -559,6 +563,26 @@ function ContactCenterAssessment({ saveResults, onComplete }) {
         <h3 className="text-lg font-semibold text-gray-800 mb-4">
           {currentCategory?.name}: {skill?.name}
         </h3>
+
+        {/* Add current proficiency display */}
+        {getCurrentProficiency(currentCategory?.name, skill?.name) && (
+          <div className="mb-4 bg-blue-50 rounded-lg p-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <span className="text-sm text-blue-600">Current Proficiency:</span>
+                <span className="ml-2 font-medium text-blue-900">
+                  {getCurrentProficiency(currentCategory?.name, skill?.name).proficiency}
+                </span>
+              </div>
+              <div className="text-sm text-blue-600">
+                Score: {getCurrentProficiency(currentCategory?.name, skill?.name).score}/100
+              </div>
+            </div>
+            <div className="text-xs text-blue-500 mt-1">
+              Last assessed: {new Date(getCurrentProficiency(currentCategory?.name, skill?.name).lastAssessed).toLocaleDateString()}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-12">

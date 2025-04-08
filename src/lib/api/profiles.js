@@ -84,7 +84,7 @@ export const updateProfile = async (id, profileData) => {
 // Add new function to handle contact center assessment
 export const addContactCenterAssessment = async (id, assessment) => {
   try {
-    const { data } = await api.post(`/profiles/${id}/contact-center-assessment`, assessment);
+    const { data } = await api.post(`/profiles/${id}/contact-center-assessment`, { assessment });
     return data;
   } catch (error) {
     throw error.response?.data || error;
