@@ -26,6 +26,16 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
     currentRole: '',
     yearsExperience: ''
   });
+  const [editingExperience, setEditingExperience] = useState(null);
+  const [newExperience, setNewExperience] = useState({
+    title: '',
+    company: '',
+    startDate: '',
+    endDate: '',
+    responsibilities: [''],
+    isPresent: false
+  });
+  const [showNewExperienceForm, setShowNewExperienceForm] = useState(false);
 
   const proficiencyLevels = [
     { value: 'A1', label: 'A1 - Beginner', description: 'Can understand and use basic phrases, introduce themselves' },
@@ -563,167 +573,322 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
   const renderExperienceSection = () => {
     const formatDate = (date) => {
       if (date === 'present') return 'Present';
-      if (!date) return '';  // Handle null/undefined dates
+      if (!date) return '';
       try {
         const dateObj = new Date(date);
-        if (isNaN(dateObj.getTime())) return date; // Return as is if invalid date
+        if (isNaN(dateObj.getTime())) return date;
         return new Intl.DateTimeFormat('en-US', { 
           month: 'short',
           year: 'numeric'
         }).format(dateObj);
       } catch (error) {
         console.error('Error formatting date:', error);
-        return date; // Return original value if formatting fails
+        return date;
       }
+    };
+
+    const ExperienceForm = ({ experience, onSubmit, isNew = false }) => {
+      const [formData, setFormData] = useState({
+        title: experience.title || '',
+        company: experience.company || '',
+        startDate: experience.startDate || '',
+        endDate: experience.endDate || '',
+        responsibilities: experience.responsibilities || [''],
+        isPresent: experience.isPresent || false
+      });
+
+      const handleInputChange = (field, value) => {
+        setFormData(prev => ({
+          ...prev,
+          [field]: value
+        }));
+      };
+
+      const handleResponsibilityChange = (index, value) => {
+        const updatedResponsibilities = [...formData.responsibilities];
+        updatedResponsibilities[index] = value;
+        setFormData(prev => ({
+          ...prev,
+          responsibilities: updatedResponsibilities
+        }));
+      };
+
+      const addResponsibilityField = () => {
+        setFormData(prev => ({
+          ...prev,
+          responsibilities: [...prev.responsibilities, '']
+        }));
+      };
+
+      const removeResponsibilityField = (index) => {
+        setFormData(prev => ({
+          ...prev,
+          responsibilities: prev.responsibilities.filter((_, i) => i !== index)
+        }));
+      };
+
+      const handleSubmit = () => {
+        const experienceData = {
+          ...formData,
+          endDate: formData.isPresent ? 'present' : formData.endDate
+        };
+        onSubmit(experienceData);
+      };
+
+      return (
+        <div className="space-y-4 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => handleInputChange('title', e.target.value)}
+                className="w-full p-2 border rounded-md"
+                placeholder="e.g. Software Engineer"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+              <input
+                type="text"
+                value={formData.company}
+                onChange={(e) => handleInputChange('company', e.target.value)}
+                className="w-full p-2 border rounded-md"
+                placeholder="e.g. Tech Corp"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+              <input
+                type="date"
+                value={formData.startDate instanceof Date ? formData.startDate.toISOString().split('T')[0] : formData.startDate}
+                onChange={(e) => handleInputChange('startDate', e.target.value)}
+                className="w-full p-2 border rounded-md"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={formData.endDate instanceof Date ? formData.endDate.toISOString().split('T')[0] : formData.endDate}
+                  onChange={(e) => handleInputChange('endDate', e.target.value)}
+                  disabled={formData.isPresent}
+                  className="flex-1 p-2 border rounded-md disabled:bg-gray-100"
+                />
+                <label className="flex items-center gap-2 text-sm text-gray-600">
+                  <input
+                    type="checkbox"
+                    checked={formData.isPresent}
+                    onChange={(e) => handleInputChange('isPresent', e.target.checked)}
+                    className="rounded border-gray-300"
+                  />
+                  Present
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">Responsibilities</label>
+            {formData.responsibilities.map((resp, index) => (
+              <div key={index} className="flex gap-2">
+                <input
+                  type="text"
+                  value={resp}
+                  onChange={(e) => handleResponsibilityChange(index, e.target.value)}
+                  className="flex-1 p-2 border rounded-md"
+                  placeholder="Add a responsibility"
+                />
+                <button
+                  onClick={() => removeResponsibilityField(index)}
+                  className="text-red-500 hover:text-red-700"
+                  type="button"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={addResponsibilityField}
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
+              type="button"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Add Responsibility
+            </button>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-6">
+            <button
+              onClick={() => isNew ? setShowNewExperienceForm(false) : setEditingExperience(null)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              type="button"
+            >
+              {isNew ? 'Add Experience' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      );
     };
 
     return (
       <div className="mb-8 space-y-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-4">Professional Experience</h3>
-          {editedProfile.experience?.map((role, index) => (
-            <div key={index} className="mb-6 last:mb-0">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-800">{role.title}</h4>
-                  <p className="text-gray-600">{role.company}</p>
-                </div>
-                <div className="text-sm text-gray-500">
-                  {formatDate(role.startDate)} - {formatDate(role.endDate)}
-                </div>
-              </div>
-              <ul className="mt-3 space-y-2">
-                {role.responsibilities?.map((resp, idx) => (
-                  <li key={idx} className="text-gray-700 flex items-start">
-                    <span className="text-blue-500 mr-2">•</span>
-                    {resp}
-                  </li>
-                ))}
-              </ul>
-              {role.achievements?.length > 0 && (
-                <div className="mt-3">
-                  <h5 className="text-sm font-semibold text-gray-700 mb-2">Key Achievements:</h5>
-                  <ul className="space-y-1">
-                    {role.achievements.map((achievement, idx) => (
-                      <li key={idx} className="text-gray-700 flex items-start">
-                        <span className="text-green-500 mr-2">✓</span>
-                        {achievement}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold text-gray-900">Professional Experience</h3>
+            {editingProfile && (
+              <button
+                onClick={() => setShowNewExperienceForm(true)}
+                className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors duration-200 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Add Experience
+              </button>
+            )}
+          </div>
+
+          {showNewExperienceForm && (
+            <div className="mb-6">
+              <ExperienceForm
+                experience={newExperience}
+                onSubmit={handleAddExperience}
+                isNew={true}
+              />
             </div>
-          ))}
+          )}
+
+          <div className="space-y-6">
+            {editedProfile.experience?.map((role, index) => (
+              <div key={index} className="relative">
+                {editingExperience === role ? (
+                  <ExperienceForm
+                    experience={editingExperience}
+                    onSubmit={handleExperienceUpdate}
+                    isNew={false}
+                  />
+                ) : (
+                  <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-xl border border-gray-200 relative group">
+                    {editingProfile && (
+                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2">
+                        <button
+                          onClick={() => setEditingExperience(role)}
+                          className="p-2 text-blue-600 hover:text-blue-700 bg-white rounded-full shadow-sm hover:shadow-md transition-all duration-200"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleRemoveExperience(index)}
+                          className="p-2 text-red-600 hover:text-red-700 bg-white rounded-full shadow-sm hover:shadow-md transition-all duration-200"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-800">{role.title}</h4>
+                        <p className="text-gray-600">{role.company}</p>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {formatDate(role.startDate)} - {formatDate(role.endDate)}
+                      </div>
+                    </div>
+                    <ul className="mt-3 space-y-2">
+                      {role.responsibilities?.map((resp, idx) => (
+                        <li key={idx} className="text-gray-700 flex items-start">
+                          <span className="text-blue-500 mr-2">•</span>
+                          {resp}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-
-        {editingProfile ? (
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Industry Expertise</h3>
-              <div className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {editedProfile.professionalSummary?.industries?.map((industry, index) => (
-                    <div key={index} className="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-full">
-                      <span className="text-sm font-medium text-gray-700">{industry}</span>
-                      <button
-                        onClick={() => removeIndustry(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                {renderError(validationErrors.industries, 'industries')}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={tempIndustry}
-                    onChange={(e) => setTempIndustry(e.target.value)}
-                    className="flex-1 p-2 border rounded-md"
-                    placeholder="Add an industry"
-                  />
-                  <button
-                    onClick={addIndustry}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Notable Companies</h3>
-              <div className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {editedProfile.professionalSummary?.notableCompanies?.map((company, index) => (
-                    <div key={index} className="flex items-center gap-2 bg-purple-50 px-3 py-1 rounded-full">
-                      <span className="text-sm font-medium text-gray-700">{company}</span>
-                      <button
-                        onClick={() => removeCompany(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                {renderError(validationErrors.companies, 'companies')}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={tempCompany}
-                    onChange={(e) => setTempCompany(e.target.value)}
-                    className="flex-1 p-2 border rounded-md"
-                    placeholder="Add a company"
-                  />
-                  <button
-                    onClick={addCompany}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Industry Expertise</h3>
-              <div className="flex flex-wrap gap-2">
-                {editedProfile.professionalSummary?.industries?.map((industry, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-blue-50 text-gray-700 rounded-full text-sm font-medium"
-                  >
-                    {industry}
-                  </span>
-                ))}
-              </div>
-              {renderError(validationErrors.industries, 'industries')}
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Notable Companies</h3>
-              <div className="flex flex-wrap gap-2">
-                {editedProfile.professionalSummary?.notableCompanies?.map((company, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-purple-50 text-gray-700 rounded-full text-sm font-medium"
-                  >
-                    {company}
-                  </span>
-                ))}
-              </div>
-              {renderError(validationErrors.companies, 'companies')}
-            </div>
-          </div>
-        )}
       </div>
     );
+  };
+
+  const handleExperienceUpdate = async (updatedExperience) => {
+    try {
+      const updatedExperiences = [...editedProfile.experience];
+      const index = editedProfile.experience.findIndex(exp => exp === editingExperience);
+      updatedExperiences[index] = updatedExperience;
+
+      await updateExperience(editedProfile._id, updatedExperiences);
+
+      setEditedProfile(prev => ({
+        ...prev,
+        experience: updatedExperiences
+      }));
+      setEditingExperience(null);
+    } catch (error) {
+      console.error('Error updating experience:', error);
+    }
+  };
+
+  const handleAddExperience = async (experienceData) => {
+    try {
+      // Create a new array with the new experience at the beginning, followed by any existing experiences
+      // This ensures new experiences appear at the top of the list
+      const updatedExperiences = [
+        experienceData,
+        ...(editedProfile.experience || [])
+      ];
+
+      await updateExperience(editedProfile._id, updatedExperiences);
+
+      setEditedProfile(prev => ({
+        ...prev,
+        experience: updatedExperiences
+      }));
+      setShowNewExperienceForm(false);
+      setNewExperience({
+        title: '',
+        company: '',
+        startDate: '',
+        endDate: '',
+        responsibilities: [''],
+        isPresent: false
+      });
+    } catch (error) {
+      console.error('Error adding experience:', error);
+    }
+  };
+
+  const handleRemoveExperience = async (index) => {
+    try {
+      const updatedExperiences = editedProfile.experience.filter((_, i) => i !== index);
+      await updateExperience(editedProfile._id, updatedExperiences);
+
+      setEditedProfile(prev => ({
+        ...prev,
+        experience: updatedExperiences
+      }));
+    } catch (error) {
+      console.error('Error removing experience:', error);
+    }
   };
 
   return (
