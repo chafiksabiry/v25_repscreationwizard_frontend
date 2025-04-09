@@ -591,13 +591,14 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
       const [formData, setFormData] = useState({
         title: experience.title || '',
         company: experience.company || '',
-        startDate: experience.startDate || '',
-        endDate: experience.endDate || '',
+        startDate: experience.startDate ? new Date(experience.startDate).toISOString().split('T')[0] : '',
+        endDate: experience.endDate && experience.endDate !== 'present' ? new Date(experience.endDate).toISOString().split('T')[0] : '',
         responsibilities: experience.responsibilities || [''],
-        isPresent: experience.isPresent || false
+        isPresent: experience.endDate === 'present' || experience.isPresent || false
       });
 
       const handleInputChange = (field, value) => {
+        console.log(`Updating ${field} with value:`, value);
         setFormData(prev => ({
           ...prev,
           [field]: value
@@ -628,10 +629,16 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
       };
 
       const handleSubmit = () => {
+        console.log('Form data before submission:', formData);
+        
+        // Convert dates to proper format before submitting
         const experienceData = {
           ...formData,
-          endDate: formData.isPresent ? 'present' : formData.endDate
+          startDate: formData.startDate, // Keep as YYYY-MM-DD string
+          endDate: formData.isPresent ? 'present' : formData.endDate // Keep as YYYY-MM-DD string or 'present'
         };
+
+        console.log('Experience data being submitted:', experienceData);
         onSubmit(experienceData);
       };
 
@@ -662,7 +669,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
               <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
               <input
                 type="date"
-                value={formData.startDate instanceof Date ? formData.startDate.toISOString().split('T')[0] : formData.startDate}
+                value={formData.startDate}
                 onChange={(e) => handleInputChange('startDate', e.target.value)}
                 className="w-full p-2 border rounded-md"
               />
@@ -672,7 +679,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
               <div className="flex items-center gap-2">
                 <input
                   type="date"
-                  value={formData.endDate instanceof Date ? formData.endDate.toISOString().split('T')[0] : formData.endDate}
+                  value={formData.endDate}
                   onChange={(e) => handleInputChange('endDate', e.target.value)}
                   disabled={formData.isPresent}
                   className="flex-1 p-2 border rounded-md disabled:bg-gray-100"
@@ -681,7 +688,12 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
                   <input
                     type="checkbox"
                     checked={formData.isPresent}
-                    onChange={(e) => handleInputChange('isPresent', e.target.checked)}
+                    onChange={(e) => {
+                      handleInputChange('isPresent', e.target.checked);
+                      if (e.target.checked) {
+                        handleInputChange('endDate', '');
+                      }
+                    }}
                     className="rounded border-gray-300"
                   />
                   Present
@@ -850,12 +862,40 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
 
   const handleAddExperience = async (experienceData) => {
     try {
-      // Create a new array with the new experience at the beginning, followed by any existing experiences
-      // This ensures new experiences appear at the top of the list
+      console.log('Raw experience data received:', experienceData);
+      console.log('Raw startDate:', experienceData.startDate);
+      console.log('Raw endDate:', experienceData.endDate);
+      console.log('isPresent:', experienceData.isPresent);
+
+      // Process the dates before creating the experience
+      const processedExperience = {
+        ...experienceData,
+        startDate: new Date(experienceData.startDate),
+        // Handle endDate specially
+        endDate: experienceData.isPresent ? 'present' : new Date(experienceData.endDate)
+      };
+
+      console.log('Processed experience before validation:', processedExperience);
+      console.log('Processed startDate type:', typeof processedExperience.startDate);
+      console.log('Processed startDate value:', processedExperience.startDate);
+      console.log('Processed endDate type:', typeof processedExperience.endDate);
+      console.log('Processed endDate value:', processedExperience.endDate);
+
+      // Validate the dates
+      if (isNaN(processedExperience.startDate.getTime())) {
+        throw new Error('Invalid start date');
+      }
+      if (!experienceData.isPresent && isNaN(processedExperience.endDate.getTime())) {
+        throw new Error('Invalid end date');
+      }
+
+      // Create a new array with the new experience at the beginning
       const updatedExperiences = [
-        experienceData,
+        processedExperience,
         ...(editedProfile.experience || [])
       ];
+
+      console.log('Final data being sent to backend:', updatedExperiences);
 
       await updateExperience(editedProfile._id, updatedExperiences);
 
@@ -874,6 +914,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
       });
     } catch (error) {
       console.error('Error adding experience:', error);
+      alert('Error adding experience: ' + error.message);
     }
   };
 
