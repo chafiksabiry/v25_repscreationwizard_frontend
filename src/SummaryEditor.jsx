@@ -7,7 +7,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
   const { profile, loading: profileLoading, error: profileError, updateBasicInfo, updateExperience, updateSkills, updateProfileData } = useProfile();
   const [isEditing, setIsEditing] = useState(false);
   console.log("generatedSummary : ", generatedSummary);
-  const [editedSummary, setEditedSummary] = useState('');
+  const [editedSummary, setEditedSummary] = useState(generatedSummary);
   const [loading, setLoading] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [editedProfile, setEditedProfile] = useState(profileData);
@@ -41,6 +41,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
     professional: '',
     soft: ''
   });
+  const [tempProfileDescription, setTempProfileDescription] = useState('');
 
   const proficiencyLevels = [
     { value: 'A1', label: 'A1 - Beginner', description: 'Can understand and use basic phrases, introduce themselves' },
@@ -52,12 +53,6 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
   ];
 
   useEffect(() => {
-    if (generatedSummary) {
-      setEditedSummary(generatedSummary);
-    }
-  }, [generatedSummary]);
-
-  useEffect(() => {
     if (profileData) {
       setEditedProfile({
         ...profileData,
@@ -67,6 +62,13 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
           soft: []
         }
       });
+      setTempProfileDescription(profileData.professionalSummary?.profileDescription || '');
+    }
+  }, [profileData]);
+
+  useEffect(() => {
+    if (profileData?.professionalSummary?.profileDescription) {
+      setEditedSummary(profileData.professionalSummary.profileDescription);
     }
   }, [profileData]);
 
@@ -518,13 +520,59 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
       ]);
 
       const newSummary = response.choices[0].message.content;
-      setGeneratedSummary(newSummary);
+      
+      // Update both the local state and the database
       setEditedSummary(newSummary);
+      setEditedProfile(prev => ({
+        ...prev,
+        professionalSummary: {
+          ...prev.professionalSummary,
+          profileDescription: newSummary
+        }
+      }));
+
+      // Save to database
+      await updateProfileData(editedProfile._id, {
+        professionalSummary: {
+          ...editedProfile.professionalSummary,
+          profileDescription: newSummary
+        }
+      });
+
+      // Ensure we're not in editing mode after regenerating
       setIsEditing(false);
+      
+      // Show success message
+      alert('Professional summary has been regenerated and saved successfully!');
+      
     } catch (error) {
       console.error('Failed to regenerate summary:', error);
+      alert('Failed to regenerate summary. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveSummary = async () => {
+    try {
+      await updateProfileData(editedProfile._id, {
+        professionalSummary: {
+          ...editedProfile.professionalSummary,
+          profileDescription: editedSummary
+        }
+      });
+
+      setEditedProfile(prev => ({
+        ...prev,
+        professionalSummary: {
+          ...prev.professionalSummary,
+          profileDescription: editedSummary
+        }
+      }));
+
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving summary:', error);
     }
   };
 
@@ -1126,6 +1174,27 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
     }
   };
 
+  const handleProfileDescriptionUpdate = async () => {
+    try {
+      await updateProfileData(editedProfile._id, {
+        professionalSummary: {
+          ...editedProfile.professionalSummary,
+          profileDescription: tempProfileDescription
+        }
+      });
+
+      setEditedProfile(prev => ({
+        ...prev,
+        professionalSummary: {
+          ...prev.professionalSummary,
+          profileDescription: tempProfileDescription
+        }
+      }));
+    } catch (error) {
+      console.error('Error updating profile description:', error);
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
       <div className="h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
@@ -1411,7 +1480,16 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
 
           {/* Summary Section */}
           <div className="mt-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">Professional Summary</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-2xl font-bold text-gray-900">Professional Summary</h3>
+              <button
+                onClick={regenerateSummary}
+                disabled={loading}
+                className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors duration-200"
+              >
+                {loading ? '✨ Working Magic...' : '🔄 Regenerate Summary'}
+              </button>
+            </div>
             {isEditing ? (
               <div className="space-y-4">
                 <textarea
@@ -1423,7 +1501,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
                 <div className="flex justify-end space-x-3">
                   <button
                     onClick={() => {
-                      setEditedSummary(generatedSummary);
+                      setEditedSummary(editedProfile.professionalSummary?.profileDescription || '');
                       setIsEditing(false);
                     }}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
@@ -1431,10 +1509,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
                     Cancel
                   </button>
                   <button
-                    onClick={() => {
-                      setGeneratedSummary(editedSummary);
-                      setIsEditing(false);
-                    }}
+                    onClick={handleSaveSummary}
                     className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg hover:from-blue-700 hover:to-purple-700"
                   >
                     Save Changes
@@ -1444,7 +1519,9 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
             ) : (
               <div className="relative">
                 <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-xl">
-                  <p className="text-gray-800 whitespace-pre-line text-lg leading-relaxed">{generatedSummary}</p>
+                  <p className="text-gray-800 whitespace-pre-line text-lg leading-relaxed">
+                    {editedProfile.professionalSummary?.profileDescription || 'No professional summary yet. Click "Regenerate Summary" to create one, or "Edit" to write your own.'}
+                  </p>
                 </div>
                 <button
                   onClick={() => setIsEditing(true)}
@@ -1459,14 +1536,7 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
           </div>
 
           {/* Action Buttons */}
-          <div className="mt-8 flex justify-end space-x-4">
-            <button
-              onClick={regenerateSummary}
-              disabled={loading}
-              className="px-6 py-3 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors duration-200"
-            >
-              {loading ? '✨ Working Magic...' : '🔄 Regenerate Summary'}
-            </button>
+          <div className="mt-8 flex justify-end">
             <button
               onClick={pushToRepsProfile}
               className="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors duration-200 flex items-center gap-2"
