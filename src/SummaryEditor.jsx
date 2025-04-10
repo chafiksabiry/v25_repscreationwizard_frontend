@@ -1243,6 +1243,26 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
     }
   };
 
+  const handleAvailabilityChange = async (field, value) => {
+    try {
+      const updatedAvailability = {
+        ...editedProfile.availability,
+        [field]: value
+      };
+
+      await updateProfileData(editedProfile._id, {
+        availability: updatedAvailability
+      });
+
+      setEditedProfile(prev => ({
+        ...prev,
+        availability: updatedAvailability
+      }));
+    } catch (error) {
+      console.error('Error updating availability:', error);
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
       <div className="h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
@@ -1524,6 +1544,201 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
             {renderSkillSection('Soft Skills', editedProfile.skills.soft, 'soft')}
             {renderSkillSection('Industries', editedProfile.professionalSummary.industries, 'industries')}
             {renderSkillSection('Notable Companies', editedProfile.professionalSummary.notableCompanies, 'notableCompanies')}
+          </div>
+
+          {/* Availability Section */}
+          <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-6">Working Hours & Availability</h3>
+            
+            {editingProfile ? (
+              <div className="space-y-6">
+                {/* Working Days */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Working Days</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                      <button
+                        key={day}
+                        onClick={() => {
+                          const currentDays = editedProfile.availability?.days || [];
+                          const updatedDays = currentDays.includes(day)
+                            ? currentDays.filter(d => d !== day)
+                            : [...currentDays, day];
+                          handleAvailabilityChange('days', updatedDays);
+                        }}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                          editedProfile.availability?.days?.includes(day)
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Working Hours */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Working Hours</label>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-500 mb-1">Start Time</label>
+                      <input
+                        type="time"
+                        value={editedProfile.availability?.hours?.start || ''}
+                        onChange={(e) => handleAvailabilityChange('hours', {
+                          ...editedProfile.availability?.hours,
+                          start: e.target.value
+                        })}
+                        className="w-full p-2 border rounded-md"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-500 mb-1">End Time</label>
+                      <input
+                        type="time"
+                        value={editedProfile.availability?.hours?.end || ''}
+                        onChange={(e) => handleAvailabilityChange('hours', {
+                          ...editedProfile.availability?.hours,
+                          end: e.target.value
+                        })}
+                        className="w-full p-2 border rounded-md"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Time Zones */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Time Zones</label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {[
+                      'New York (EST/EDT)',
+                      'Chicago (CST/CDT)',
+                      'Denver (MST/MDT)',
+                      'Los Angeles (PST/PDT)',
+                      'London (GMT/BST)',
+                      'Paris (CET/CEST)',
+                      'Dubai (GST)',
+                      'Singapore (SGT)',
+                      'Tokyo (JST)',
+                      'Sydney (AEST/AEDT)'
+                    ].map((zone) => (
+                      <button
+                        key={zone}
+                        onClick={() => {
+                          const currentZones = editedProfile.availability?.timeZones || [];
+                          const updatedZones = currentZones.includes(zone)
+                            ? currentZones.filter(z => z !== zone)
+                            : [...currentZones, zone];
+                          handleAvailabilityChange('timeZones', updatedZones);
+                        }}
+                        className={`p-2 rounded-lg text-sm font-medium text-left transition-colors duration-200 ${
+                          editedProfile.availability?.timeZones?.includes(zone)
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {zone}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Schedule Flexibility */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Schedule Flexibility</label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {[
+                      'Remote Work Available',
+                      'Flexible Hours',
+                      'Weekend Rotation',
+                      'Night Shift Available',
+                      'Split Shifts',
+                      'Part-Time Options',
+                      'Compressed Work Week',
+                      'Shift Swapping Allowed'
+                    ].map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => {
+                          const currentFlexibility = editedProfile.availability?.flexibility || [];
+                          const updatedFlexibility = currentFlexibility.includes(option)
+                            ? currentFlexibility.filter(f => f !== option)
+                            : [...currentFlexibility, option];
+                          handleAvailabilityChange('flexibility', updatedFlexibility);
+                        }}
+                        className={`p-2 rounded-lg text-sm font-medium text-left transition-colors duration-200 ${
+                          editedProfile.availability?.flexibility?.includes(option)
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Working Days Display */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">Working Days</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {editedProfile.availability?.days?.map((day) => (
+                      <span
+                        key={day}
+                        className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium"
+                      >
+                        {day}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Working Hours Display */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">Working Hours</h4>
+                  <p className="text-lg font-semibold text-gray-800">
+                    {editedProfile.availability?.hours?.start && editedProfile.availability?.hours?.end
+                      ? `${editedProfile.availability.hours.start} - ${editedProfile.availability.hours.end}`
+                      : 'Not specified'}
+                  </p>
+                </div>
+
+                {/* Time Zones Display */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">Time Zones</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {editedProfile.availability?.timeZones?.map((zone) => (
+                      <span
+                        key={zone}
+                        className="px-4 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium"
+                      >
+                        {zone}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Schedule Flexibility Display */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">Schedule Flexibility</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {editedProfile.availability?.flexibility?.map((option) => (
+                      <span
+                        key={option}
+                        className="px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium"
+                      >
+                        {option}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Summary Section */}
