@@ -67,10 +67,40 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
   }, [profileData]);
 
   useEffect(() => {
-    if (profileData?.professionalSummary?.profileDescription) {
-      setEditedSummary(profileData.professionalSummary.profileDescription);
-    }
-  }, [profileData]);
+    const initializeSummary = async () => {
+      // If we have a generated summary from props but no profile description in the database
+      if (generatedSummary && (!profileData?.professionalSummary?.profileDescription || profileData.professionalSummary.profileDescription === '')) {
+        try {
+          // Update local state
+          setEditedSummary(generatedSummary);
+          setEditedProfile(prev => ({
+            ...prev,
+            professionalSummary: {
+              ...prev.professionalSummary,
+              profileDescription: generatedSummary
+            }
+          }));
+
+          // Save to database
+          await updateProfileData(profileData._id, {
+            professionalSummary: {
+              ...profileData.professionalSummary,
+              profileDescription: generatedSummary
+            }
+          });
+
+          console.log('Successfully saved initial generated summary to database');
+        } catch (error) {
+          console.error('Error saving initial generated summary:', error);
+        }
+      } else if (profileData?.professionalSummary?.profileDescription) {
+        // If we already have a profile description in the database, use that
+        setEditedSummary(profileData.professionalSummary.profileDescription);
+      }
+    };
+
+    initializeSummary();
+  }, [profileData, generatedSummary]);
 
   const validateProfile = () => {
     const errors = {};
