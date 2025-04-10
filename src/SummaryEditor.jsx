@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AssessmentDialog from './components/AssessmentDialog';
 import { useProfile } from './hooks/useProfile';
 import openaiClient from './lib/ai/openaiClient';
+import { OpenAI } from 'openai';
 
 function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onProfileUpdate }) {
   const { profile, loading: profileLoading, error: profileError, updateBasicInfo, updateExperience, updateSkills, updateProfileData } = useProfile();
@@ -532,22 +533,41 @@ function SummaryEditor({ profileData, generatedSummary, setGeneratedSummary, onP
   const regenerateSummary = async () => {
     try {
       setLoading(true);
-      const response = await openaiClient.createChatCompletion([
-        {
-          role: "system",
-          content: `You are a professional CV writer with a knack for creating engaging, memorable summaries. Create a compelling professional summary that follows the REPS framework while maintaining a confident, energetic tone:
-          - Role: Current position and career focus (with a touch of personality)
-          - Experience: Years and experience and key industries (highlight the journey)
-          - Projects: Notable achievements and contributions (make them shine)
-          - Skills: Core technical and professional competencies (show expertise with style)
-          
-          Keep the summary concise, impactful, and achievement-oriented while letting the person's unique value proposition shine through.`
-        },
-        {
-          role: "user",
-          content: `Create a fresh, engaging REPS summary based on this profile data: ${JSON.stringify(editedProfile)}`
-        }
-      ]);
+      
+      // First, ensure we have the OpenAI API key
+      const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+      if (!apiKey) {
+        throw new Error('OpenAI API key is required');
+      }
+
+      // Create OpenAI client instance
+      const openai = new OpenAI({
+        apiKey: apiKey,
+        dangerouslyAllowBrowser: true
+      });
+
+      // Generate the summary using OpenAI
+      const response = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: `You are a professional CV writer with a knack for creating engaging, memorable summaries. Create a compelling professional summary that follows the REPS framework while maintaining a confident, energetic tone:
+            - Role: Current position and career focus (with a touch of personality)
+            - Experience: Years and experience and key industries (highlight the journey)
+            - Projects: Notable achievements and contributions (make them shine)
+            - Skills: Core technical and professional competencies (show expertise with style)
+            
+            Keep the summary concise, impactful, and achievement-oriented while letting the person's unique value proposition shine through.`
+          },
+          {
+            role: "user",
+            content: `Create a fresh, engaging REPS summary based on this profile data: ${JSON.stringify(editedProfile)}`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      });
 
       const newSummary = response.choices[0].message.content;
       
