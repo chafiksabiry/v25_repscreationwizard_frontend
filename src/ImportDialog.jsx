@@ -170,20 +170,41 @@ function ImportDialog({ isOpen, onClose, onImport }) {
         messages: [
           {
             role: "system",
-            content: `Analyze the work experience section of this CV and return it in the exact JSON format shown below:
+            content: `Analyze the work experience section of this CV and return it in the exact JSON format shown below. Follow these rules strictly:
+
+            Date Formatting Rules:
+            1. All dates must be in ISO format (YYYY-MM-DD)
+            2. For current/ongoing positions:
+               - endDate MUST be exactly the string "present" (lowercase)
+               - Do not use any other variations like "Present", "now", "current", etc.
+            3. For completed positions:
+               - endDate must be a valid date in YYYY-MM-DD format
+               - If only month and year are provided, use the last day of that month
+               - If only year is provided, use December 31st of that year
+            4. For startDate:
+               - Must always be a valid date in YYYY-MM-DD format
+               - If only month and year are provided, use the first day of that month
+               - If only year is provided, use January 1st of that year
+
+            Return in this exact format:
             {
               "roles": [{
                 "title": "string",
                 "company": "string",
-                "startDate": "string",
-                "endDate": "string",
+                "startDate": "YYYY-MM-DD",  // Must be a valid date
+                "endDate": "YYYY-MM-DD" | "present",  // Must be either a valid date or exactly "present"
                 "responsibilities": ["string"],
                 "achievements": ["string"]
               }],
               "industries": ["string"],
               "keyAreas": ["string"],
               "notableCompanies": ["string"]
-            }`
+            }
+
+            Example of valid dates:
+            - startDate: "2024-01-01"  // January 2024
+            - endDate: "2024-03-31"    // March 2024
+            - endDate: "present"        // Current position`
           },
           {
             role: "user",
@@ -204,7 +225,55 @@ function ImportDialog({ isOpen, onClose, onImport }) {
         messages: [
           {
             role: "system",
-            content: `Analyze the CV for skills and competencies and return them in the exact JSON format shown below:
+            content: `Analyze the CV for skills and competencies, with special attention to language proficiency evaluation. For languages, you must intelligently map any proficiency description to the CEFR scale (A1-C2) based on the following comprehensive guidelines:
+
+            CEFR Level Assessment Guidelines:
+
+            A1 (Beginner/Basic)
+            - Can understand and use basic phrases
+            - Can introduce themselves and others
+            - Expressions suggesting A1: basic, elementary, débutant, notions, beginner, basic words and phrases
+            - Context clues: "took introductory courses", "basic communication", "learning basics"
+
+            A2 (Elementary)
+            - Can communicate in simple, routine situations
+            - Can describe aspects of background, environment
+            - Expressions suggesting A2: pre-intermediate, basic working knowledge, connaissance basique, can read simple texts
+            - Context clues: "can handle simple work communications", "basic professional interactions"
+
+            B1 (Intermediate)
+            - Can deal with most situations while traveling
+            - Can describe experiences, events, dreams, hopes
+            - Expressions suggesting B1: intermediate, working knowledge, niveau moyen, bonne base, conversational
+            - Context clues: "can participate in meetings", "handle routine work tasks"
+
+            B2 (Upper Intermediate)
+            - Can interact with degree of fluency with native speakers
+            - Can produce clear, detailed text
+            - Expressions suggesting B2: upper intermediate, professional working, bonne maitrise, fluent, professional proficiency
+            - Context clues: "regular professional use", "conduct business meetings", "negotiate with clients"
+
+            C1 (Advanced)
+            - Can use language flexibly and effectively
+            - Can produce clear, well-structured, detailed texts
+            - Expressions suggesting C1: advanced, highly fluent, excellent, très bonne maitrise, native-like, full professional proficiency
+            - Context clues: "worked in language", "lived in country for years", "conducted complex negotiations"
+
+            C2 (Mastery)
+            - Can understand virtually everything heard or read
+            - Can express themselves spontaneously, precisely, and fluently
+            - Expressions suggesting C2: native, mother tongue, bilingual, langue maternelle, perfect mastery
+            - Context clues: "native speaker", "grew up speaking", "primary language of education"
+
+            Analysis Instructions:
+            1. Look for both explicit statements and contextual clues about language use
+            2. Consider the professional context where the language is used
+            3. Look for indicators of duration and depth of language exposure
+            4. If the CV mentions work experience or education in a country, factor this into the assessment
+            5. When in doubt between two levels, consider the overall context of language use
+            6. Default to B1 only if there's significant uncertainty and no contextual clues
+
+            Return in this exact JSON format:
             {
               "technical": [{
                 "name": "string",
@@ -223,7 +292,7 @@ function ImportDialog({ isOpen, onClose, onImport }) {
               }],
               "languages": [{
                 "language": "string",
-                "proficiency": "string"
+                "proficiency": "string (MUST be one of: A1, A2, B1, B2, C1, C2)"
               }]
             }`
           },
@@ -325,7 +394,33 @@ function ImportDialog({ isOpen, onClose, onImport }) {
           context: a.context || '',
           skills: a.skills || []
         })),
-        experience: experience.roles || defaultArrays.roles
+        experience: (experience.roles || defaultArrays.roles).map(role => {
+          // For startDate, always convert to Date
+          const startDate = new Date(role.startDate);
+          
+          // For endDate, handle 'present' case specially
+          let endDate;
+          if (role.endDate === 'present') {
+            endDate = 'present';  // Keep as string for ongoing positions
+          } else {
+            // For past experiences, convert to Date
+            endDate = new Date(role.endDate);
+            
+            // Validate the date
+            if (isNaN(endDate.getTime())) {
+              throw new Error(`Invalid end date: ${role.endDate}`);
+            }
+          }
+
+          return {
+            title: role.title,
+            company: role.company,
+            startDate,         // Will be automatically handled as ISODate by MongoDB
+            endDate,          // Will be either Date object or 'present' string
+            responsibilities: role.responsibilities || [],
+            achievements: role.achievements || []
+          };
+        })
       };
 
       addAnalysisStep("Generating professional summary");

@@ -23,22 +23,24 @@ function AssessmentDialog({ isOpen, onClose, languages, profileData, onProfileUp
   const [analyzing, setAnalyzing] = useState(false);
   const [showingProfile, setShowingProfile] = useState(false);
 
-  const handleLanguageAssessmentComplete = async (results) => {
+  const handleLanguageAssessmentComplete = async (assessmentData) => {
     try {
-      // Save language assessment results to the database
-      console.log('updateLanguageAssessment body : ', languages[currentLanguage].language, results);
+      // Save language assessment results and proficiency to the database
+      console.log('updateLanguageAssessment body : ', languages[currentLanguage].language, assessmentData);
 
       const updatedProfile = await updateLanguageAssessment(
         profileData._id,
         languages[currentLanguage].language,
-        results
+        assessmentData.proficiency,
+        assessmentData.results
       );
+
       console.log("updatedProfile : ", updatedProfile);
       setAssessmentResults(prev => ({
         ...prev,
         languages: {
           ...prev.languages,
-          [languages[currentLanguage].language]: results
+          [languages[currentLanguage].language]: assessmentData.results
         }
       }));
 
@@ -75,50 +77,64 @@ function AssessmentDialog({ isOpen, onClose, languages, profileData, onProfileUp
   };
 
   const saveContactCenterAssessmentResult = async (results) => {
-    console.log('saveContactCenterAssessmentResult param :', results);
+    console.log('saveContactCenterAssessmentResult param:', results);
     try {
-      /*       setAssessmentResults(prev => ({
-              contactCenter: {...results}
-            }));
-            console.log("assessmentResults :", assessmentResults) */
-      let contactCenterBody = {
-        assessment: {
-          category: results.category,
-          skill: results.skill,
-          score: results.score,
-          strengths: results.strengths,
-          improvements: results.improvements,
-          feedback: results.feedback,
-          tips: results.tips,
-          keyMetrics: results.keyMetrics
-        }
-      };
-      // Store results in database
-      const addContactCenterAssessmentResult = await addContactCenterAssessment(profileData._id, contactCenterBody);
-      console.log("addContactCenterAssessmentResult : ", addContactCenterAssessmentResult);
+      // Send results directly to the backend
+      const updatedProfile = await addContactCenterAssessment(profileData._id, results);
+      console.log("Updated profile after assessment:", updatedProfile);
+
       // Update parent component's profileData
       if (onProfileUpdate) {
-        onProfileUpdate(addContactCenterAssessmentResult);
+        onProfileUpdate(updatedProfile);
       }
+
+      // Update local state with the new assessment results
+      setAssessmentResults(prev => ({
+        ...prev,
+        contactCenter: {
+          ...prev.contactCenter,
+          [results.skill]: {
+            category: results.category,
+            score: results.score,
+            proficiency: mapScoreToProficiency(results.score),
+            strengths: results.strengths,
+            improvements: results.improvements,
+            feedback: results.feedback,
+            tips: results.tips,
+            keyMetrics: results.keyMetrics
+          }
+        }
+      }));
     } catch (error) {
       console.error('Error saving contact center assessment:', error);
     }
   };
 
   const handleContactCenterAssessmentComplete = async (results) => {
-    console.log('handleContactCenterAssessmentComplete param :', results);
+    console.log('handleContactCenterAssessmentComplete param:', results);
     try {
-      console.log("assessmentResults in handleContactCenterAssessmentComplete before :", assessmentResults)
-      setAssessmentResults(prev => {
-        const updatedResult = { ...prev, contactCenter: results };
-        console.log("Updated assessmentResults inside setState:", updatedResult);
-        return updatedResult; // Correctly returns the new state
-      });
-      //console.log("updatedResult :", updatedResult)
-      //await generateFinalRecommendations(updatedResult);
+      // Update the assessment results state with the new structure
+      const updatedResult = {
+        ...assessmentResults,
+        contactCenter: results
+      };
+      
+      setAssessmentResults(updatedResult);
+      
+      // Generate recommendations and show profile when all assessments are complete
+      await generateFinalRecommendations(updatedResult);
+      
     } catch (error) {
-      console.error('Error saving contact center assessment:', error);
+      console.error('Error handling contact center assessment completion:', error);
     }
+  };
+
+  const mapScoreToProficiency = (score) => {
+    if (score >= 90) return 'Expert';
+    if (score >= 75) return 'Advanced';
+    if (score >= 60) return 'Intermediate';
+    if (score >= 40) return 'Basic';
+    return 'Novice';
   };
 
   const generateFinalRecommendations = async (results) => {
@@ -173,13 +189,6 @@ function AssessmentDialog({ isOpen, onClose, languages, profileData, onProfileUp
       setAnalyzing(false);
     }
   };
-
-  useEffect(() => {
-    if (assessmentResults.contactCenter) { // Ensure contactCenter exists before calling
-      console.log("Assessment Results Updated:", assessmentResults);
-      generateFinalRecommendations(assessmentResults);
-    }
-  }, [assessmentResults]);
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">

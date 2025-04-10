@@ -45,13 +45,10 @@ export const updateSkills = async (id, skills) => {
   }
 };
 
-export const updateLanguageAssessment = async (id, language, results) => {
+export const updateLanguageAssessment = async (id, data) => {
   try {
-    const { data } = await api.post(`/profiles/${id}/language-assessment`, {
-      language,
-      results
-    });
-    return data;
+    const { data: response } = await api.post(`/profiles/${id}/language-assessment`, data);
+    return response;
   } catch (error) {
     throw error.response?.data || error;
   }
@@ -87,7 +84,7 @@ export const updateProfile = async (id, profileData) => {
 // Add new function to handle contact center assessment
 export const addContactCenterAssessment = async (id, assessment) => {
   try {
-    const { data } = await api.post(`/profiles/${id}/contact-center-assessment`, assessment);
+    const { data } = await api.post(`/profiles/${id}/contact-center-assessment`, { assessment });
     return data;
   } catch (error) {
     throw error.response?.data || error;

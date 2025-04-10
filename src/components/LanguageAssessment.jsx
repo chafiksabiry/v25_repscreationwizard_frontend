@@ -120,7 +120,16 @@ function LanguageAssessment({ language, onComplete }) {
     }
   };
 
-  // Analyze recording using veretx : API Google
+  const mapScoreToCEFR = (score) => {
+    if (score >= 95) return 'C2';
+    if (score >= 80) return 'C1';
+    if (score >= 65) return 'B2';
+    if (score >= 50) return 'B1';
+    if (score >= 35) return 'A2';
+    return 'A1';
+  };
+
+  // Analyze recording using vertex : API Google
   const analyzeAudio = async () => {
     setAnalyzing(true);
     try {
@@ -139,14 +148,6 @@ function LanguageAssessment({ language, onComplete }) {
       const response = await analyzeRecordingVertex(data);
       console.log("Deno :", response);
       const assessmentResults = response;
-      // Save language assessment results to the database
-      if (profile?._id) {
-        try {
-          await updateLanguageAssessment(profile._id, language, assessmentResults);
-        } catch (error) {
-          console.error('Error saving language assessment:', error);
-        }
-      }
       setResults(assessmentResults);
       setPreviousScores(prev => [...prev, assessmentResults.overall.score]);
     } catch (error) {
@@ -303,7 +304,10 @@ function LanguageAssessment({ language, onComplete }) {
                 Retake Assessment
               </button>
               <button
-                onClick={() => onComplete(results)}
+                onClick={() => {
+                  const proficiencyLevel = mapScoreToCEFR(results.overall.score);
+                  onComplete({ proficiency: proficiencyLevel, results });
+                }}
                 className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center gap-2"
               >
                 Approve & Continue
