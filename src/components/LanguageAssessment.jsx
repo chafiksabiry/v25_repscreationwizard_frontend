@@ -318,55 +318,6 @@ function LanguageAssessment({ language, onComplete }) {
             </div>
           </div>
         )}
-
-        {/* {results && (
-          <div className="space-y-6">
-            {Object.entries(results).map(([category, data]) => (
-              category !== 'overall' && category !== 'languageCheck' && (
-                <div key={category} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <h5 className="text-sm font-medium text-gray-700 capitalize">{category}</h5>
-                    <span className="text-sm font-semibold text-blue-600">{data.score}/100</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
-                      style={{ width: `${data.score}%` }}
-                    />
-                  </div>
-                  <p className="text-sm text-gray-600">{data.feedback}</p>
-                </div>
-              )
-            ))}
-
-            <div className="mt-8 p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
-              <div className="flex justify-between items-center mb-4">
-                <h5 className="text-lg font-semibold text-gray-900">Overall Assessment</h5>
-                <span className="text-2xl font-bold text-blue-600">{results.overall.overall}/100</span>
-              </div>
-              <p className="text-gray-800">{(results.languageOrTextMismatch === true) ? results.overall.strengths : results.overall.areasForImprovement}</p>
-              {showScoreComparison()}
-            </div>
-
-            <div className="flex justify-between">
-              <button
-                onClick={retakeAssessment}
-                className="px-6 py-3 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
-              >
-                Retake Assessment
-              </button>
-              <button
-                onClick={() => onComplete(results)}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center gap-2"
-              >
-                Approve & Continue
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        )} */}
       </div>
     </div>
   );
