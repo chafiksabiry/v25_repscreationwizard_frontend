@@ -768,6 +768,33 @@ function ContactCenterAssessment({ saveResults, onComplete, profileData }) {
                       ))}
                     </ul>
                   </div>
+
+                  {/* Retake Assessment Button */}
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      onClick={() => {
+                        // Just reset the state without saving
+                        setFeedback(null);
+                        setResponse('');
+                        setAudioBlob(null);
+                        setAnalyzing(false);
+                        setSavingError(null); // Clear any previous saving errors
+                      }}
+                      className="px-6 py-3 bg-white border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-all duration-200 flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span>Retake Assessment</span>
+                    </button>
+                  </div>
+
+                  {/* Show error if saving fails */}
+                  {savingError && (
+                    <div className="mt-2 text-sm text-red-600 text-center">
+                      {savingError}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -808,47 +835,6 @@ function ContactCenterAssessment({ saveResults, onComplete, profileData }) {
             </button>
           )}
         </div>
-      </div>
-
-      {/* Retake Assessment Button */}
-      <div className="mt-6 flex justify-center">
-        <button
-          onClick={async () => {
-            // Save current results before retaking
-            try {
-              const assessmentData = {
-                category: currentCategory.name,
-                skill: currentCategory.skills[currentSkill].name,
-                proficiency: mapScoreToProficiency(feedback.score),
-                assessmentResults: {
-                  score: feedback.score,
-                  strengths: feedback.strengths,
-                  improvements: feedback.improvements,
-                  feedback: feedback.feedback,
-                  tips: feedback.tips,
-                  keyMetrics: {
-                    professionalism: feedback.keyMetrics.professionalism,
-                    effectiveness: feedback.keyMetrics.effectiveness,
-                    customerFocus: feedback.keyMetrics.customerFocus
-                  },
-                  completedAt: new Date().toISOString()
-                }
-              };
-              await saveResults(assessmentData);
-              // Only clear the state after successful save
-              setFeedback(null);
-              setResponse('');
-              setAudioBlob(null);
-              setAnalyzing(false);
-            } catch (error) {
-              console.error('Error saving assessment:', error);
-              setSavingError('Failed to save assessment results. Please try again.');
-            }
-          }}
-          className="px-6 py-3 bg-white border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-all duration-200 flex items-center gap-2"
-        >
-          Retake Assessment
-        </button>
       </div>
     </div>
   );
