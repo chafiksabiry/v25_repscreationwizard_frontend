@@ -225,7 +225,7 @@ function ImportDialog({ isOpen, onClose, onImport }) {
         messages: [
           {
             role: "system",
-            content: `Analyze the CV for skills and competencies, with special attention to language proficiency evaluation. For languages, you must intelligently map any proficiency description to the CEFR scale (A1-C2) based on the following comprehensive guidelines:
+            content: `Analyze the CV for skills and competencies, with special attention to language proficiency evaluation. You MUST extract ALL languages mentioned in the CV, even if they are mentioned briefly or without explicit proficiency levels. For languages, you must intelligently map any proficiency description to the CEFR scale (A1-C2) based on the following comprehensive guidelines:
 
             CEFR Level Assessment Guidelines:
 
@@ -266,12 +266,20 @@ function ImportDialog({ isOpen, onClose, onImport }) {
             - Context clues: "native speaker", "grew up speaking", "primary language of education"
 
             Analysis Instructions:
-            1. Look for both explicit statements and contextual clues about language use
-            2. Consider the professional context where the language is used
-            3. Look for indicators of duration and depth of language exposure
-            4. If the CV mentions work experience or education in a country, factor this into the assessment
-            5. When in doubt between two levels, consider the overall context of language use
-            6. Default to B1 only if there's significant uncertainty and no contextual clues
+            1. CRITICAL: Extract ALL languages mentioned in the CV, regardless of how briefly they are mentioned
+            2. Look for languages in ALL sections of the CV including:
+               - Language sections
+               - Education history (e.g. courses taken in different languages)
+               - Work experience (e.g. working with international teams)
+               - Skills sections
+               - Personal projects or achievements
+            3. For each language found, look for both explicit statements and contextual clues about language use
+            4. Consider the professional context where the language is used
+            5. Look for indicators of duration and depth of language exposure
+            6. If the CV mentions work experience or education in a country, factor this into the assessment
+            7. When in doubt between two levels, consider the overall context of language use
+            8. Default to B1 only if there's significant uncertainty and no contextual clues
+            9. If a language is mentioned but there are absolutely no clues about proficiency level, default to A1
 
             Return in this exact JSON format:
             {
