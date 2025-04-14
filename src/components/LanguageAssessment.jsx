@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { getReadingPassage } from '../utils/languageUtils';
+import { getPassage } from '../utils/passageManager';
 import { analyzeRecordingVertex, uploadRecording } from '../lib/api/vertex';
 import OpenAI from 'openai';
 import { useProfile } from '../hooks/useProfile';
@@ -19,6 +19,7 @@ function LanguageAssessment({ language, onComplete }) {
   const [results, setResults] = useState(null);
   const [passage, setPassage] = useState(null);
   const [passageError, setPassageError] = useState(null);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [previousScores, setPreviousScores] = useState([]);
   const mediaRecorder = useRef(null);
@@ -26,15 +27,22 @@ function LanguageAssessment({ language, onComplete }) {
 
   useEffect(() => {
     // Load reading passage when component mounts
-    try {
-      const passageData = getReadingPassage(language);
-      setPassage(passageData);
-      setPassageError(null);
-    } catch (error) {
-      console.error(error);
-      setPassageError(error.message);
-      setPassage(null);
-    }
+    const loadPassage = async () => {
+      try {
+        setIsTranslating(true);
+        setPassageError(null);
+        const passageData = await getPassage(language);
+        setPassage(passageData);
+      } catch (error) {
+        console.error('Error loading passage:', error);
+        setPassageError(error.message);
+        setPassage(null);
+      } finally {
+        setIsTranslating(false);
+      }
+    };
+
+    loadPassage();
   }, [language]);
 
   const startRecording = async () => {
@@ -205,7 +213,13 @@ function LanguageAssessment({ language, onComplete }) {
         {/* Reading Passage */}
         <div className="p-6 bg-blue-50 rounded-xl">
           <h5 className="text-lg font-medium text-blue-900 mb-3">Reading Passage</h5>
-          {passageError ? (
+          {isTranslating ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-blue-800">Preparing assessment materials...</p>
+              <p className="text-sm text-blue-600 mt-2">Translating passage to {language}...</p>
+            </div>
+          ) : passageError ? (
             <div className="flex flex-col items-center justify-center py-6 text-center">
               <div className="text-red-500 mb-3">
                 <svg className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -214,7 +228,7 @@ function LanguageAssessment({ language, onComplete }) {
               </div>
               <p className="text-red-600 font-medium mb-2">Assessment Not Available</p>
               <p className="text-blue-800">{passageError}</p>
-              <p className="text-sm text-blue-600 mt-4">Please contact support to request assessment materials for this language.</p>
+              <p className="text-sm text-blue-600 mt-4">Please try again or contact support if the issue persists.</p>
             </div>
           ) : (
             <p className="text-blue-800 whitespace-pre-line">{passage?.text}</p>
