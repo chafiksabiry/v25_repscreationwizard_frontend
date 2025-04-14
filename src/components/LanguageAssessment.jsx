@@ -18,6 +18,7 @@ function LanguageAssessment({ language, onComplete }) {
   const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
   const [passage, setPassage] = useState(null);
+  const [passageError, setPassageError] = useState(null);
   const [attempts, setAttempts] = useState(0);
   const [previousScores, setPreviousScores] = useState([]);
   const mediaRecorder = useRef(null);
@@ -28,8 +29,11 @@ function LanguageAssessment({ language, onComplete }) {
     try {
       const passageData = getReadingPassage(language);
       setPassage(passageData);
+      setPassageError(null);
     } catch (error) {
       console.error(error);
+      setPassageError(error.message);
+      setPassage(null);
     }
   }, [language]);
 
@@ -201,59 +205,74 @@ function LanguageAssessment({ language, onComplete }) {
         {/* Reading Passage */}
         <div className="p-6 bg-blue-50 rounded-xl">
           <h5 className="text-lg font-medium text-blue-900 mb-3">Reading Passage</h5>
-          <p className="text-blue-800 whitespace-pre-line">{passage?.text}</p>
-        </div>
-
-        {/* Recording Controls */}
-        <div className="space-y-4">
-          <div className="flex justify-center">
-            <button
-              onClick={recording ? stopRecording : startRecording}
-              className={`px-6 py-3 rounded-full font-medium flex items-center gap-2 ${recording
-                ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-                }`}
-            >
-              {recording ? (
-                <>
-                  <span className="animate-pulse">⚫</span>
-                  Stop Recording
-                </>
-              ) : (
-                <>
-                  🎤 Start Recording
-                </>
-              )}
-            </button>
-          </div>
-
-          {audioBlob && !analyzing && (
-            <div className="flex flex-col items-center gap-4">
-              <audio controls src={URL.createObjectURL(audioBlob)} className="w-full max-w-md" />
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setAudioBlob(null)}
-                  className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
-                >
-                  Record Again
-                </button>
-                <button
-                  onClick={analyzeAudio}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700"
-                >
-                  Analyze Recording
-                </button>
+          {passageError ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <div className="text-red-500 mb-3">
+                <svg className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
               </div>
+              <p className="text-red-600 font-medium mb-2">Assessment Not Available</p>
+              <p className="text-blue-800">{passageError}</p>
+              <p className="text-sm text-blue-600 mt-4">Please contact support to request assessment materials for this language.</p>
             </div>
-          )}
-
-          {analyzing && (
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Analyzing your language proficiency...</p>
-            </div>
+          ) : (
+            <p className="text-blue-800 whitespace-pre-line">{passage?.text}</p>
           )}
         </div>
+
+        {/* Recording Controls - Only show if there's no passage error */}
+        {!passageError && (
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <button
+                onClick={recording ? stopRecording : startRecording}
+                className={`px-6 py-3 rounded-full font-medium flex items-center gap-2 ${recording
+                  ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                  : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                  }`}
+              >
+                {recording ? (
+                  <>
+                    <span className="animate-pulse">⚫</span>
+                    Stop Recording
+                  </>
+                ) : (
+                  <>
+                    🎤 Start Recording
+                  </>
+                )}
+              </button>
+            </div>
+
+            {audioBlob && !analyzing && (
+              <div className="flex flex-col items-center gap-4">
+                <audio controls src={URL.createObjectURL(audioBlob)} className="w-full max-w-md" />
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setAudioBlob(null)}
+                    className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Record Again
+                  </button>
+                  <button
+                    onClick={analyzeAudio}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700"
+                  >
+                    Analyze Recording
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {analyzing && (
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Analyzing your language proficiency...</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Results Section */}
         {results && (
