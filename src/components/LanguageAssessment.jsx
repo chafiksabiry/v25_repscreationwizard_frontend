@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { getReadingPassage } from '../utils/languageUtils';
+import { getPassage } from '../utils/passageManager';
 import { analyzeRecordingVertex, uploadRecording } from '../lib/api/vertex';
 import OpenAI from 'openai';
 import { useProfile } from '../hooks/useProfile';
@@ -18,6 +18,8 @@ function LanguageAssessment({ language, onComplete }) {
   const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
   const [passage, setPassage] = useState(null);
+  const [passageError, setPassageError] = useState(null);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [previousScores, setPreviousScores] = useState([]);
   const mediaRecorder = useRef(null);
@@ -25,12 +27,22 @@ function LanguageAssessment({ language, onComplete }) {
 
   useEffect(() => {
     // Load reading passage when component mounts
-    try {
-      const passageData = getReadingPassage(language);
-      setPassage(passageData);
-    } catch (error) {
-      console.error(error);
-    }
+    const loadPassage = async () => {
+      try {
+        setIsTranslating(true);
+        setPassageError(null);
+        const passageData = await getPassage(language);
+        setPassage(passageData);
+      } catch (error) {
+        console.error('Error loading passage:', error);
+        setPassageError(error.message);
+        setPassage(null);
+      } finally {
+        setIsTranslating(false);
+      }
+    };
+
+    loadPassage();
   }, [language]);
 
   const startRecording = async () => {
@@ -201,59 +213,80 @@ function LanguageAssessment({ language, onComplete }) {
         {/* Reading Passage */}
         <div className="p-6 bg-blue-50 rounded-xl">
           <h5 className="text-lg font-medium text-blue-900 mb-3">Reading Passage</h5>
-          <p className="text-blue-800 whitespace-pre-line">{passage?.text}</p>
-        </div>
-
-        {/* Recording Controls */}
-        <div className="space-y-4">
-          <div className="flex justify-center">
-            <button
-              onClick={recording ? stopRecording : startRecording}
-              className={`px-6 py-3 rounded-full font-medium flex items-center gap-2 ${recording
-                ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-                }`}
-            >
-              {recording ? (
-                <>
-                  <span className="animate-pulse">⚫</span>
-                  Stop Recording
-                </>
-              ) : (
-                <>
-                  🎤 Start Recording
-                </>
-              )}
-            </button>
-          </div>
-
-          {audioBlob && !analyzing && (
-            <div className="flex flex-col items-center gap-4">
-              <audio controls src={URL.createObjectURL(audioBlob)} className="w-full max-w-md" />
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setAudioBlob(null)}
-                  className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
-                >
-                  Record Again
-                </button>
-                <button
-                  onClick={analyzeAudio}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700"
-                >
-                  Analyze Recording
-                </button>
-              </div>
-            </div>
-          )}
-
-          {analyzing && (
-            <div className="text-center">
+          {isTranslating ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Analyzing your language proficiency...</p>
+              <p className="text-blue-800">Preparing assessment materials...</p>
+              <p className="text-sm text-blue-600 mt-2">Translating passage to {language}...</p>
             </div>
+          ) : passageError ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <div className="text-red-500 mb-3">
+                <svg className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <p className="text-red-600 font-medium mb-2">Assessment Not Available</p>
+              <p className="text-blue-800">{passageError}</p>
+              <p className="text-sm text-blue-600 mt-4">Please try again or contact support if the issue persists.</p>
+            </div>
+          ) : (
+            <p className="text-blue-800 whitespace-pre-line">{passage?.text}</p>
           )}
         </div>
+
+        {/* Recording Controls - Only show if there's no passage error */}
+        {!passageError && (
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <button
+                onClick={recording ? stopRecording : startRecording}
+                className={`px-6 py-3 rounded-full font-medium flex items-center gap-2 ${recording
+                  ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                  : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                  }`}
+              >
+                {recording ? (
+                  <>
+                    <span className="animate-pulse">⚫</span>
+                    Stop Recording
+                  </>
+                ) : (
+                  <>
+                    🎤 Start Recording
+                  </>
+                )}
+              </button>
+            </div>
+
+            {audioBlob && !analyzing && (
+              <div className="flex flex-col items-center gap-4">
+                <audio controls src={URL.createObjectURL(audioBlob)} className="w-full max-w-md" />
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setAudioBlob(null)}
+                    className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Record Again
+                  </button>
+                  <button
+                    onClick={analyzeAudio}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700"
+                  >
+                    Analyze Recording
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {analyzing && (
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Analyzing your language proficiency...</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Results Section */}
         {results && (
@@ -318,55 +351,6 @@ function LanguageAssessment({ language, onComplete }) {
             </div>
           </div>
         )}
-
-        {/* {results && (
-          <div className="space-y-6">
-            {Object.entries(results).map(([category, data]) => (
-              category !== 'overall' && category !== 'languageCheck' && (
-                <div key={category} className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <h5 className="text-sm font-medium text-gray-700 capitalize">{category}</h5>
-                    <span className="text-sm font-semibold text-blue-600">{data.score}/100</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
-                      style={{ width: `${data.score}%` }}
-                    />
-                  </div>
-                  <p className="text-sm text-gray-600">{data.feedback}</p>
-                </div>
-              )
-            ))}
-
-            <div className="mt-8 p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
-              <div className="flex justify-between items-center mb-4">
-                <h5 className="text-lg font-semibold text-gray-900">Overall Assessment</h5>
-                <span className="text-2xl font-bold text-blue-600">{results.overall.overall}/100</span>
-              </div>
-              <p className="text-gray-800">{(results.languageOrTextMismatch === true) ? results.overall.strengths : results.overall.areasForImprovement}</p>
-              {showScoreComparison()}
-            </div>
-
-            <div className="flex justify-between">
-              <button
-                onClick={retakeAssessment}
-                className="px-6 py-3 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
-              >
-                Retake Assessment
-              </button>
-              <button
-                onClick={() => onComplete(results)}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center gap-2"
-              >
-                Approve & Continue
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        )} */}
       </div>
     </div>
   );
