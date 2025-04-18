@@ -182,9 +182,9 @@ function ContactCenterAssessment({ saveResults, onComplete, profileData }) {
               "feedback": "string",
               "tips": ["string"],
               "keyMetrics": {
-                "professionalism": number (1-10),
-                "effectiveness": number (1-10),
-                "customerFocus": number (1-10)
+                "professionalism": number (1-100),
+                "effectiveness": number (1-100),
+                "customerFocus": number (1-100)
               }
             }`
           },
@@ -316,7 +316,26 @@ function ContactCenterAssessment({ saveResults, onComplete, profileData }) {
     // Save the current skill assessment before moving to next
     if (feedback) {
       try {
-        await saveResults(feedback);
+        // Format the assessment data according to the backend schema
+        const assessmentData = {
+          category: currentCategory.name,
+          skill: currentCategory.skills[currentSkill].name,
+          proficiency: mapScoreToProficiency(feedback.score),
+          assessmentResults: {
+            score: feedback.score,
+            strengths: feedback.strengths,
+            improvements: feedback.improvements,
+            feedback: feedback.feedback,
+            tips: feedback.tips,
+            keyMetrics: {
+              professionalism: feedback.keyMetrics.professionalism,
+              effectiveness: feedback.keyMetrics.effectiveness,
+              customerFocus: feedback.keyMetrics.customerFocus
+            },
+            completedAt: new Date().toISOString()
+          }
+        };
+        await saveResults(assessmentData);
       } catch (error) {
         console.error('Error saving assessment:', error);
         setSavingError('Failed to save assessment results. Please try again.');
@@ -518,7 +537,7 @@ function ContactCenterAssessment({ saveResults, onComplete, profileData }) {
                             {Object.entries(skillScore.keyMetrics).map(([metric, score]) => (
                               <div key={metric} className="flex-1">
                                 <div className="text-xs text-gray-500 capitalize">{metric}</div>
-                                <div className="font-medium text-blue-600">{score}/10</div>
+                                <div className="font-medium text-blue-600">{score}/100</div>
                               </div>
                             ))}
                           </div>
@@ -700,11 +719,11 @@ function ContactCenterAssessment({ saveResults, onComplete, profileData }) {
                     {Object.entries(feedback.keyMetrics).map(([metric, score]) => (
                       <div key={metric} className="bg-white p-3 rounded-lg">
                         <div className="text-sm text-gray-500 capitalize mb-1">{metric}</div>
-                        <div className="text-lg font-semibold text-blue-600">{score}/10</div>
+                        <div className="text-lg font-semibold text-blue-600">{score}/100</div>
                         <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
-                            style={{ width: `${score * 10}%` }}
+                            style={{ width: `${score}%` }}
                           />
                         </div>
                       </div>
@@ -749,6 +768,33 @@ function ContactCenterAssessment({ saveResults, onComplete, profileData }) {
                       ))}
                     </ul>
                   </div>
+
+                  {/* Retake Assessment Button */}
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      onClick={() => {
+                        // Just reset the state without saving
+                        setFeedback(null);
+                        setResponse('');
+                        setAudioBlob(null);
+                        setAnalyzing(false);
+                        setSavingError(null); // Clear any previous saving errors
+                      }}
+                      className="px-6 py-3 bg-white border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-all duration-200 flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span>Retake Assessment</span>
+                    </button>
+                  </div>
+
+                  {/* Show error if saving fails */}
+                  {savingError && (
+                    <div className="mt-2 text-sm text-red-600 text-center">
+                      {savingError}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
