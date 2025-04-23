@@ -38,30 +38,29 @@ function App() {
 
   useEffect(() => {
     const initializeToken = async () => {
-      // Check if token exists
-      /*       const existingToken = localStorage.getItem('token');
-            if (existingToken) {
-              console.log("token already exists in local storage : ", existingToken)
-              return;
-            } */
-
       try {
         // Generate a temporary userId if not exists
-        let userId = Cookies.get('userId')
-        /*if (!localStorage.getItem('userId')) {
-          console.log("set a new userId")
-          localStorage.setItem('userId', "67a22959828197bb180caa59");
-        }*/
+        let userId = Cookies.get('userId');
+
         console.log("Verified saved user ID from cookie:", userId);
 
-        // Generate token
-        const { data } = await api.post('/auth/generate-token', {
-          userId: userId
-        });
+        const token = localStorage.getItem('token');
+        if (!token) {
+          try {
+            console.log("Generating new token...");
+            const { data } = await api.post('/auth/generate-token', { userId });
 
-        console.log("tokenResult : ", data)
-        if (data?.token) {
-          localStorage.setItem('token', data.token);
+            if (data?.token) {
+              localStorage.setItem('token', data.token);
+              console.log("Successfully stored new token");
+            } else {
+              console.warn("Token generation response missing token");
+            }
+          } catch (err) {
+            console.error("Failed to generate token:", err);
+          }
+        } else {
+          console.log("Token already exists in local storage:", token);
         }
       } catch (error) {
         console.error('Failed to initialize token:', error.message);
