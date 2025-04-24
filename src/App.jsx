@@ -46,13 +46,8 @@ function App() {
             } */
 
       try {
-        // Generate a temporary userId if not exists
-        let userId = Cookies.get('userId')
-        /*if (!localStorage.getItem('userId')) {
-          console.log("set a new userId")
-          localStorage.setItem('userId', "67a22959828197bb180caa59");
-        }*/
-        console.log("Verified saved user ID from cookie:", userId);
+        const userId = "6800ce8f4a95bc69c5afbe48";
+        console.log("static userID:", userId);
 
         // Generate token
         const { data } = await api.post('/auth/generate-token', {
