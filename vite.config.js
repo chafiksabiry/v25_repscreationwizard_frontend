@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
-    base: 'https://preprod-repcreationwizard.harx.ai/',
+    base: 'https://repcreationwizard.harx.ai/',
     plugins: [
       react({
         jsxRuntime: 'classic',
