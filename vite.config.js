@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
-    base: 'https://repcreationwizard.harx.ai/',
+    base: 'https://preprod-repcreationwizard.harx.ai/',
     plugins: [
       react({
         jsxRuntime: 'classic',
@@ -37,7 +37,14 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5177,
       cors: true,
-      hmr: false,
+      hmr: {
+        host: 'localhost',
+        port: 5177,
+      },
+      watch: {
+        usePolling: true,
+        interval: 1000,
+      },
       fs: {
         strict: true, // Ensure static assets are correctly resolved
       },
