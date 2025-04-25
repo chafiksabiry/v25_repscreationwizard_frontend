@@ -7,6 +7,7 @@ import RepsProfile from './components/REPSProfile'
 import { Navigate } from 'react-router-dom';
 import api from './lib/api/client';
 import Cookies from 'js-cookie';
+
 function App() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -38,30 +39,41 @@ function App() {
 
   useEffect(() => {
     const initializeToken = async () => {
-      // Check if token exists
-      /*       const existingToken = localStorage.getItem('token');
-            if (existingToken) {
-              console.log("token already exists in local storage : ", existingToken)
-              return;
-            } */
-
       try {
-        // Generate a temporary userId if not exists
-        let userId = Cookies.get('userId')
-        /*if (!localStorage.getItem('userId')) {
-          console.log("set a new userId")
-          localStorage.setItem('userId', "67a22959828197bb180caa59");
-        }*/
-        console.log("Verified saved user ID from cookie:", userId);
+        let userId;
+        const runMode = import.meta.env.VITE_RUN_MODE || 'in-app';
+        
+        // Determine userId based on run mode
+        if (runMode === 'standalone') {
+          console.log("Running in standalone mode");
+          // Use static userId from environment variable in standalone mode
+          userId = import.meta.env.VITE_STANDALONE_USER_ID;
+          console.log("Using static userID from env:", userId);
+          } else {
+          console.log("Running in in-app mode");
+          // Use userId from cookies in in-app mode
+          userId = Cookies.get('userId');
+          console.log("userId cookie:", userId);
+          console.log("Verified saved user ID from cookie:", userId);
+        }
 
-        // Generate token
-        const { data } = await api.post('/auth/generate-token', {
-          userId: userId
-        });
+        const token = localStorage.getItem('token');
+        if (!token) {
+          try {
+            console.log("Generating new token...");
+            const { data } = await api.post('/auth/generate-token', { userId });
 
-        console.log("tokenResult : ", data)
-        if (data?.token) {
-          localStorage.setItem('token', data.token);
+            if (data?.token) {
+              localStorage.setItem('token', data.token);
+              console.log("Successfully stored new token", data.token);
+            } else {
+              console.warn("Token generation response missing token");
+            }
+          } catch (err) {
+            console.error("Failed to generate token:", err);
+          }
+        } else {
+          console.log("Token already exists in local storage:", token);
         }
       } catch (error) {
         console.error('Failed to initialize token:', error.message);
@@ -70,7 +82,6 @@ function App() {
 
     initializeToken();
   }, []);
-
 
   const handleProfileData = (data) => {
     const { generatedSummary, ...profileInfo } = data;

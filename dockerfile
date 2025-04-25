@@ -9,7 +9,9 @@ COPY package*.json ./
 
 ENV VITE_API_URL=https://api-repcreationwizard.harx.ai/api
 ENV VITE_OPENAI_API_KEY=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
-
+#ENV VITE_RUN_MODE=in-app
+ENV VITE_RUN_MODE=standalone
+ENV VITE_STANDALONE_USER_ID=6800ce8f4a95bc69c5afbe48
 # Install dependencies
 RUN npm install
 
