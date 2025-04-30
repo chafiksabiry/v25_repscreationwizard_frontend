@@ -9,7 +9,7 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true
 });
 
-function LanguageAssessment({ language, onComplete }) {
+function LanguageAssessment({ language, onComplete, onExit }) {
   const { profile, loading: profileLoading, error: profileError, updateLanguageAssessment } = useProfile();
   const [recording, setRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
@@ -20,6 +20,7 @@ function LanguageAssessment({ language, onComplete }) {
   const [isTranslating, setIsTranslating] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [previousScores, setPreviousScores] = useState([]);
+  const [languageCode, setLanguageCode] = useState(null);
   const mediaRecorder = useRef(null);
   const audioChunks = useRef([]);
 
@@ -31,6 +32,7 @@ function LanguageAssessment({ language, onComplete }) {
         setPassageError(null);
         const passageData = await getPassage(language);
         setPassage(passageData);
+        setLanguageCode(passageData.code);
       } catch (error) {
         console.error('Error loading passage:', error);
         setPassageError(error.message);
@@ -71,7 +73,6 @@ function LanguageAssessment({ language, onComplete }) {
       mediaRecorder.current.stop();
       setRecording(false);
       mediaRecorder.current.stream.getTracks().forEach(track => track.stop());
-
     }
   };
 
@@ -105,7 +106,8 @@ function LanguageAssessment({ language, onComplete }) {
               "overall": {
                 "score": number (1-100),
                 "feedback": "string"
-              }
+              },
+              "language_code": "string"
             }`
           },
           {
@@ -118,13 +120,85 @@ function LanguageAssessment({ language, onComplete }) {
       });
 
       const assessmentResults = JSON.parse(response.choices[0].message.content);
+      // Add language code to results
+      assessmentResults.language_code = languageCode;
       console.log('assessmentResults :', assessmentResults);
       setResults(assessmentResults);
       console.log('previousScores', previousScores);
       setPreviousScores(prev => [...prev, assessmentResults.overall.score]);
+      
+      // Increment attempts
+      setAttempts(prev => prev + 1);
     } catch (error) {
       console.error('Error analyzing recording:', error);
       alert('Error analyzing recording. Please try again.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  // Analyze recording using vertex : API Google
+  const analyzeAudio = async () => {
+    setAnalyzing(true);
+    try {
+      const formData = new FormData();
+      // Append the audio blob to FormData
+      const file = new File([audioBlob], `audio-${Date.now()}.opus`, { type: "audio/opus" });
+      console.log('file :', file);
+      formData.append('file', file);
+      formData.append('destinationName', `audio-${Date.now()}.opus`);
+      
+      // Use the updated uploadRecording function
+      const uploadResponse = await uploadRecording(formData);
+      console.log('Upload response:', uploadResponse);
+      
+      // Get the file URI from the response
+      const fileUri = uploadResponse.data.fileUri;
+      
+      // Prepare data for vertex analysis
+      const analysisData = {
+        "fileUri": fileUri,
+        "textToCompare": passage?.text,
+        "language": language
+      };
+      
+      // Use the updated analyzeRecordingVertex function
+      const responseText = await analyzeRecordingVertex(analysisData);
+      console.log("Vertex response text:", responseText);
+      
+      // Parse the response text which should be a JSON string
+      let assessmentResults;
+      try {
+        assessmentResults = JSON.parse(responseText.candidates[0].content.parts[0].text);
+        // Add language code to results
+        assessmentResults.language_code = languageCode;
+      } catch (parseError) {
+        console.error('Error parsing response:', parseError);
+        assessmentResults = {
+          pronunciation: { score: 0, feedback: "Error parsing results" },
+          fluency: { score: 0, feedback: "Error parsing results" },
+          comprehension: { score: 0, feedback: "Error parsing results" },
+          vocabulary: { score: 0, feedback: "Error parsing results" },
+          overall: { score: 0, feedback: "Error analyzing recording" },
+          language_code: languageCode
+        };
+      }
+      
+      setResults(assessmentResults);
+      setPreviousScores(prev => [...prev, assessmentResults.overall.score]);
+      
+      // Increment attempts
+      setAttempts(prev => prev + 1);
+    } catch (error) {
+      console.error('Error analyzing recording:', error);
+      alert('Error analyzing recording. Please try again.');
+      
+      // Fallback to OpenAI if vertex fails
+      try {
+        await analyzeRecording();
+      } catch (fallbackError) {
+        console.error('Fallback analysis also failed:', fallbackError);
+      }
     } finally {
       setAnalyzing(false);
     }
@@ -139,51 +213,21 @@ function LanguageAssessment({ language, onComplete }) {
     return 'A1';
   };
 
-  // Analyze recording using vertex : API Google
-  const analyzeAudio = async () => {
-    setAnalyzing(true);
-    try {
-      const formData = new FormData();
-      // Append the audio blob to FormData
-      const file = new File([audioBlob], `audio-${Date.now()}.opus`, { type: "audio/opus" });
-      console.log('file :', file);
-      formData.append('file', file);
-      formData.append('destinationName', `audio-${Date.now()}.opus`);
-      const res = await uploadRecording(formData);
-      console.log('fileUri blob : ', res);
-      const data = {
-        "fileUri": res.data.fileUri,
-        "textToCompare": passage?.text,
-      }
-      const response = await analyzeRecordingVertex(data);
-      console.log("Deno :", response);
-      const assessmentResults = response;
-      setResults(assessmentResults);
-      setPreviousScores(prev => [...prev, assessmentResults.overall.score]);
-    } catch (error) {
-      console.error('Error analyzing recording:', error);
-      alert('Error analyzing recording. Please try again.');
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
   const showScoreComparison = () => {
     if (previousScores.length <= 1) return null;
-
+    
+    const lastScore = previousScores[previousScores.length - 1];
     const previousScore = previousScores[previousScores.length - 2];
-    const currentScore = previousScores[previousScores.length - 1];
-    const difference = currentScore - previousScore;
-
+    const difference = lastScore - previousScore;
+    const isImprovement = difference > 0;
+    
     return (
-      <div className="mt-4 text-sm">
-        <div className="flex items-center gap-2">
-          <span className="text-gray-600">Previous attempt:</span>
-          <span className="font-medium">{previousScore}/100</span>
-          <span className={`${difference >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            ({difference >= 0 ? '+' : ''}{difference} points)
-          </span>
-        </div>
+      <div className={`mt-4 p-3 rounded-lg ${isImprovement ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>
+        <p className="font-medium">
+          {isImprovement 
+            ? `Improvement: +${difference.toFixed(1)} points from your previous attempt!` 
+            : `This attempt: ${difference.toFixed(1)} points difference from previous.`}
+        </p>
       </div>
     );
   };
@@ -191,165 +235,219 @@ function LanguageAssessment({ language, onComplete }) {
   const retakeAssessment = () => {
     setAudioBlob(null);
     setResults(null);
-    setAttempts(prev => prev + 1);
+    // Don't reset previousScores or attempts - we want to track these
   };
 
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h4 className="text-lg font-semibold text-gray-800">
-          {language} Language Assessment
-        </h4>
-        {attempts > 0 && (
-          <span className="text-sm text-gray-500">
-            Attempt {attempts + 1}
-          </span>
-        )}
-      </div>
+  const completeAssessment = () => {
+    if (results && onComplete) {
+      onComplete(results);
+    }
+  };
+  
+  const handleExit = () => {
+    if (onExit) {
+      onExit();
+    }
+  };
 
-      <div className="space-y-6">
-        {/* Reading Passage */}
-        <div className="p-6 bg-blue-50 rounded-xl">
-          <h5 className="text-lg font-medium text-blue-900 mb-3">Reading Passage</h5>
-          {isTranslating ? (
-            <div className="flex flex-col items-center justify-center py-6 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-blue-800">Preparing assessment materials...</p>
-              <p className="text-sm text-blue-600 mt-2">Translating passage to {language}...</p>
-            </div>
-          ) : passageError ? (
-            <div className="flex flex-col items-center justify-center py-6 text-center">
-              <div className="text-red-500 mb-3">
-                <svg className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <p className="text-red-600 font-medium mb-2">Assessment Not Available</p>
-              <p className="text-blue-800">{passageError}</p>
-              <p className="text-sm text-blue-600 mt-4">Please try again or contact support if the issue persists.</p>
-            </div>
-          ) : (
-            <p className="text-blue-800 whitespace-pre-line">{passage?.text}</p>
-          )}
+  // If still loading passage translation
+  if (isTranslating) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-pulse mb-4">
+          <div className="h-8 bg-gray-200 rounded w-3/4 mx-auto mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
         </div>
+        <p className="text-gray-600">Preparing {language} assessment...</p>
+      </div>
+    );
+  }
 
-        {/* Recording Controls - Only show if there's no passage error */}
-        {!passageError && (
-          <div className="space-y-4">
-            <div className="flex justify-center">
+  // If there was an error loading the passage
+  if (passageError) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <h3 className="text-red-600 text-lg font-semibold mb-2">Error Loading Assessment</h3>
+        <p className="text-gray-700 mb-4">{passageError}</p>
+        <button 
+          onClick={handleExit}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {!results ? (
+        // Assessment taking UI
+        <>
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              {passage?.title}
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Read the following passage aloud in {language}. Click "Start Recording" when ready.
+            </p>
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <p className="text-gray-800 leading-relaxed">{passage?.text}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center mb-6">
+            {!audioBlob ? (
               <button
                 onClick={recording ? stopRecording : startRecording}
-                className={`px-6 py-3 rounded-full font-medium flex items-center gap-2 ${recording
-                  ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                  : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
-                  }`}
+                className={`px-6 py-3 rounded-full text-white font-medium flex items-center ${
+                  recording ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+                disabled={isTranslating}
               >
                 {recording ? (
                   <>
-                    <span className="animate-pulse">⚫</span>
+                    <span className="h-3 w-3 rounded-full bg-white animate-pulse mr-2"></span>
                     Stop Recording
                   </>
                 ) : (
                   <>
-                    🎤 Start Recording
+                    <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10 2a2 2 0 00-2 2v6a2 2 0 104 0V4a2 2 0 00-2-2z" />
+                      <path d="M14 8a1 1 0 00-2 0v2a2 2 0 01-2 2 2 2 0 01-2-2V8a1 1 0 10-2 0v2a4 4 0 004 4h.5a.5.5 0 01.5.5v.5h-2a1 1 0 100 2h6a1 1 0 100-2h-2v-.5a.5.5 0 01.5-.5h.5a4 4 0 004-4V8a1 1 0 00-2 0z" />
+                    </svg>
+                    Start Recording
                   </>
                 )}
               </button>
-            </div>
-
-            {audioBlob && !analyzing && (
-              <div className="flex flex-col items-center gap-4">
-                <audio controls src={URL.createObjectURL(audioBlob)} className="w-full max-w-md" />
-                <div className="flex gap-4">
+            ) : (
+              <div className="space-y-4 w-full">
+                <div className="flex justify-center">
+                  <audio controls src={URL.createObjectURL(audioBlob)} className="w-full max-w-md"></audio>
+                </div>
+                <div className="flex justify-center space-x-3">
                   <button
                     onClick={() => setAudioBlob(null)}
-                    className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
                   >
                     Record Again
                   </button>
                   <button
                     onClick={analyzeAudio}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    disabled={analyzing}
                   >
-                    Analyze Recording
+                    {analyzing ? (
+                      <span className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Analyzing...
+                      </span>
+                    ) : (
+                      'Submit Recording'
+                    )}
                   </button>
                 </div>
               </div>
             )}
-
-            {analyzing && (
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Analyzing your language proficiency...</p>
-              </div>
-            )}
           </div>
-        )}
+          
+          <div className="text-center">
+            <button 
+              onClick={handleExit}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              Exit Assessment
+            </button>
+          </div>
+        </>
+      ) : (
+        // Results display UI
+        <div className="space-y-6">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center h-24 w-24 rounded-full bg-blue-50 text-blue-600 mb-4">
+              <span className="text-4xl font-bold">{results.overall.score}</span>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800">
+              {results.overall.score >= 70 ? 'Great job!' : 'Good effort!'}
+            </h2>
+            <p className="text-gray-600">
+              Your CEFR level: <span className="font-semibold">{mapScoreToCEFR(results.overall.score)}</span>
+            </p>
+            {showScoreComparison()}
+          </div>
 
-        {/* Results Section */}
-        {results && (
-          <div className="space-y-6">
-            {/* Conditionally render the first section based on languageOrTextMismatch */}
-            {results.languageOrTextMismatch !== true &&
-              Object.entries(results).map(
-                ([category, data]) =>
-                  category !== 'overall' &&
-                  category !== 'languageOrTextMismatch' &&
-                  category !== 'languageCheck' && (
-                    <div key={category} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <h5 className="text-sm font-medium text-gray-700 capitalize">{category}</h5>
-                        <span className="text-sm font-semibold text-blue-600">{(data == null) ? 0 : data.score}/100</span>
-                      </div>
-                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
-                          style={{ width: `${(data == null) ? 0 : data.score}%` }}
-                        />
-                      </div>
-                      <p className="text-sm text-gray-600">{(data == null) ? "" : data.feedback}</p>
-                    </div>
-                  )
-              )}
-
-            {/* Overall Assessment Section */}
-            <div className="mt-8 p-6 bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl">
-              <div className="flex justify-between items-center mb-4">
-                <h5 className="text-lg font-semibold text-gray-900">Overall Assessment</h5>
-                <span className="text-2xl font-bold text-blue-600">{results.overall.score}/100</span>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h3 className="font-medium text-gray-800 mb-2">Pronunciation</h3>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-600">Score</span>
+                <span className="font-bold text-blue-600">{results.pronunciation.score}/10</span>
               </div>
-              <p className="text-gray-800">
-                {results.languageOrTextMismatch === true
-                  ? results.overall.areasForImprovement
-                  : results.overall.strengths}
-              </p>
-              {showScoreComparison()}
+              <p className="text-sm text-gray-700">{results.pronunciation.feedback}</p>
             </div>
 
-            {/* Buttons Section */}
-            <div className="flex justify-between">
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h3 className="font-medium text-gray-800 mb-2">Fluency</h3>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-600">Score</span>
+                <span className="font-bold text-blue-600">{results.fluency.score}/10</span>
+              </div>
+              <p className="text-sm text-gray-700">{results.fluency.feedback}</p>
+            </div>
+
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h3 className="font-medium text-gray-800 mb-2">Comprehension</h3>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-600">Score</span>
+                <span className="font-bold text-blue-600">{results.comprehension.score}/10</span>
+              </div>
+              <p className="text-sm text-gray-700">{results.comprehension.feedback}</p>
+            </div>
+
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h3 className="font-medium text-gray-800 mb-2">Vocabulary</h3>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-600">Score</span>
+                <span className="font-bold text-blue-600">{results.vocabulary.score}/10</span>
+              </div>
+              <p className="text-sm text-gray-700">{results.vocabulary.feedback}</p>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h3 className="font-medium text-gray-800 mb-2">Overall Assessment</h3>
+            <p className="text-gray-700">{results.overall.feedback}</p>
+          </div>
+
+          <div className="flex justify-between pt-4">
+            <button
+              onClick={retakeAssessment}
+              className="px-4 py-2 bg-white border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              Retake Assessment
+            </button>
+            
+            <div className="space-x-3">
               <button
-                onClick={retakeAssessment}
-                className="px-6 py-3 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
+                onClick={handleExit}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
               >
-                Retake Assessment
+                Exit
               </button>
+              
               <button
-                onClick={() => {
-                  const proficiencyLevel = mapScoreToCEFR(results.overall.score);
-                  onComplete({ proficiency: proficiencyLevel, results });
-                }}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center gap-2"
+                onClick={completeAssessment}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
-                Approve & Continue
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
+                Save Results
               </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

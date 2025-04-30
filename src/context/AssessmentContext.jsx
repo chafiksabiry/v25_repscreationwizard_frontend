@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 
 const AssessmentContext = createContext();
 
@@ -11,9 +12,58 @@ export const AssessmentProvider = ({ children }) => {
   });
   
   const [userId, setUserId] = useState(null);
+  const [token, setToken] = useState(null);
+  const [returnUrl, setReturnUrl] = useState('/');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [currentAssessmentType, setCurrentAssessmentType] = useState(null);
+  
+  // Initialize auth data from localStorage on mount
+  useEffect(() => {
+    const storedUserId = localStorage.getItem('userId');
+    const storedToken = localStorage.getItem('token');
+    const storedReturnUrl = localStorage.getItem('returnUrl');
+    
+    if (storedUserId) setUserId(storedUserId);
+    if (storedToken) setToken(storedToken);
+    if (storedReturnUrl) setReturnUrl(storedReturnUrl);
+    
+    // In standalone mode, use the env variables
+    if (import.meta.env.VITE_RUN_MODE === 'standalone') {
+      setUserId(import.meta.env.VITE_STANDALONE_USER_ID || storedUserId);
+      setToken(import.meta.env.VITE_STANDALONE_TOKEN || storedToken);
+    }
+    
+    // We can also check URL parameters for these values
+    const params = new URLSearchParams(window.location.search);
+    const urlUserId = params.get('userId');
+    const urlToken = params.get('token');
+    const urlReturnUrl = params.get('returnUrl');
+    
+    if (urlUserId) {
+      setUserId(urlUserId);
+      localStorage.setItem('userId', urlUserId);
+    }
+    
+    if (urlToken) {
+      setToken(urlToken);
+      localStorage.setItem('token', urlToken);
+    }
+    
+    if (urlReturnUrl) {
+      setReturnUrl(urlReturnUrl);
+      localStorage.setItem('returnUrl', urlReturnUrl);
+    }
+  }, []);
+  
+  // Configure axios with the authentication token
+  useEffect(() => {
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  }, [token]);
   
   // Sample language options
   const languageOptions = [
@@ -56,34 +106,81 @@ export const AssessmentProvider = ({ children }) => {
   ];
   
   // Save a language assessment result
-  const saveLanguageAssessment = (languageId, results) => {
-    setAssessmentResults(prev => ({
-      ...prev,
-      languages: {
-        ...prev.languages,
-        [languageId]: results
-      }
-    }));
+  const saveLanguageAssessment = async (languageId, results) => {
+    if (!userId) {
+      console.error('Cannot save assessment: No user ID provided');
+      return;
+    }
     
-    // Here you would also call an API to save the results to the backend
-    // saveLanguageToBackend(userId, languageId, results);
+    setLoading(true);
+    setError(null);
+    
+    try {
+      setAssessmentResults(prev => ({
+        ...prev,
+        languages: {
+          ...prev.languages,
+          [languageId]: results
+        }
+      }));
+      
+      // Call API to save results to backend
+      if (import.meta.env.VITE_API_URL) {
+        const response = await axios.post(`${import.meta.env.VITE_API_URL}/assessments/language`, {
+          userId,
+          languageId,
+          results
+        });
+        
+        console.log('Assessment saved to backend:', response.data);
+      }
+    } catch (err) {
+      console.error('Error saving language assessment:', err);
+      setError('Failed to save assessment results');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // Save a contact center skill assessment result
-  const saveContactCenterAssessment = (skillId, category, results) => {
-    setAssessmentResults(prev => ({
-      ...prev,
-      contactCenter: {
-        ...prev.contactCenter,
-        [skillId]: {
-          category,
-          ...results
-        }
-      }
-    }));
+  const saveContactCenterAssessment = async (skillId, category, results) => {
+    if (!userId) {
+      console.error('Cannot save assessment: No user ID provided');
+      return;
+    }
     
-    // Here you would also call an API to save the results to the backend
-    // saveContactCenterToBackend(userId, skillId, category, results);
+    setLoading(true);
+    setError(null);
+    
+    try {
+      setAssessmentResults(prev => ({
+        ...prev,
+        contactCenter: {
+          ...prev.contactCenter,
+          [skillId]: {
+            category,
+            ...results
+          }
+        }
+      }));
+      
+      // Call API to save results to backend
+      if (import.meta.env.VITE_API_URL) {
+        const response = await axios.post(`${import.meta.env.VITE_API_URL}/assessments/contact-center`, {
+          userId,
+          skillId,
+          category,
+          results
+        });
+        
+        console.log('Contact center assessment saved to backend:', response.data);
+      }
+    } catch (err) {
+      console.error('Error saving contact center assessment:', err);
+      setError('Failed to save assessment results');
+    } finally {
+      setLoading(false);
+    }
   };
   
   // Reset the current assessment state when closing dialog
@@ -107,6 +204,11 @@ export const AssessmentProvider = ({ children }) => {
     return false;
   };
   
+  // Handle exit/return to parent application
+  const exitToParentApp = () => {
+    window.location.href = returnUrl;
+  };
+  
   return (
     <AssessmentContext.Provider value={{
       assessmentResults,
@@ -123,7 +225,12 @@ export const AssessmentProvider = ({ children }) => {
       setError,
       userId,
       setUserId,
-      resetAssessment
+      token,
+      setToken,
+      returnUrl,
+      setReturnUrl,
+      resetAssessment,
+      exitToParentApp
     }}>
       {children}
     </AssessmentContext.Provider>

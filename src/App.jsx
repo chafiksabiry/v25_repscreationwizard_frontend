@@ -1,21 +1,30 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LanguageAssessmentPage from './pages/LanguageAssessmentPage';
+import ContactCenterAssessmentPage from './pages/ContactCenterAssessmentPage';
 import { AssessmentProvider } from './context/AssessmentContext';
+import { initializeAuth } from './utils/authUtils';
 
 function App() {
+  // Initialize authentication on component mount
+  useEffect(() => {
+    const { userId, token } = initializeAuth();
+    console.log('Authentication initialized:', userId ? 'User authenticated' : 'No user ID');
+  }, []);
+  
   return (
     <AssessmentProvider>
       <Router>
         <Routes>
-          {/* Route for any language name */}
-          <Route path="/languages/:language" element={<LanguageAssessmentPage />} />
+          {/* Language assessment route */}
+          <Route path="/assessment/language/:language" element={<LanguageAssessmentPage />} />
           
-          {/* Default route - redirect to English */}
-          <Route path="/" element={<Navigate to="/languages/English" replace />} />
+          {/* Contact center assessment route */}
+          <Route path="/assessment/contact-center/:skillId" element={<ContactCenterAssessmentPage />} />
           
-          {/* Redirect any other routes to default page */}
-          <Route path="*" element={<Navigate to="/languages/English" replace />} />
+          {/* Redirects */}
+          <Route path="/" element={<Navigate to="/assessment/language/English" replace />} />
+          <Route path="*" element={<Navigate to="/assessment/language/English" replace />} />
         </Routes>
       </Router>
     </AssessmentProvider>
