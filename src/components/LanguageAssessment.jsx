@@ -166,90 +166,19 @@ function LanguageAssessment({ language, onComplete, onExit }) {
       const vertexResponse = await analyzeRecordingVertex(analysisData);
       console.log("Vertex response:", vertexResponse);
       
-      // Map the Vertex API response schema to our frontend schema
-      const assessmentResults = {
-        pronunciation: { 
-          score: 0, 
-          feedback: "No pronunciation assessment available" 
-        },
-        fluency: { 
-          score: 0, 
-          feedback: "No fluency assessment available" 
-        },
-        comprehension: { 
-          score: 0, 
-          feedback: "No comprehension assessment available" 
-        },
-        vocabulary: { 
-          score: 0, 
-          feedback: "No vocabulary assessment available" 
-        },
-        overall: { 
-          score: 0, 
-          feedback: "Assessment not available" 
-        },
-        language_code: languageCode,
-        languageOrTextMismatch: false
-      };
-
-      // Update with actual values from Vertex response
-      if (vertexResponse) {
-        // Handle language or text mismatch
-        if (vertexResponse.languageOrTextMismatch === true) {
-          assessmentResults.languageOrTextMismatch = true;
-          assessmentResults.overall.feedback = vertexResponse.overall?.areasForImprovement || 
-            "The language spoken does not match the expected language or the text was not read correctly.";
-        }
-        
-        // Map completeness to pronunciation (closest equivalent)
-        if (vertexResponse.completeness) {
-          assessmentResults.pronunciation = {
-            score: Math.round(vertexResponse.completeness.score) || 0,
-            feedback: vertexResponse.completeness.feedback || "No pronunciation assessment available"
-          };
-        }
-        
-        // Map fluency directly
-        if (vertexResponse.fluency) {
-          assessmentResults.fluency = {
-            score: Math.round(vertexResponse.fluency.score) || 0,
-            feedback: vertexResponse.fluency.feedback || "No fluency assessment available"
-          };
-        }
-        
-        // Map proficiency to both comprehension and vocabulary
-        if (vertexResponse.proficiency) {
-          const proficiencyScore = Math.round(vertexResponse.proficiency.score) || 0;
-          const feedback = vertexResponse.proficiency.feedback || "No assessment available";
-          
-          assessmentResults.comprehension = {
-            score: proficiencyScore,
-            feedback: feedback
-          };
-          
-          assessmentResults.vocabulary = {
-            score: proficiencyScore,
-            feedback: feedback
-          };
-        }
-        
-        // Map overall score
-        if (vertexResponse.overall) {
-          // Get the overall score, already on scale of 0-100
-          const overallScore = vertexResponse.overall.score !== undefined ? 
-            Math.round(vertexResponse.overall.score) : 0;
-          
-          assessmentResults.overall = {
-            score: overallScore,
-            feedback: vertexResponse.overall.areasForImprovement || 
-                     vertexResponse.overall.strengths || 
-                     "Overall assessment based on your recording"
-          };
-        }
+      // Keep the original Vertex response format
+      // Only add language_code if it doesn't exist
+      if (!vertexResponse.language_code) {
+        vertexResponse.language_code = languageCode;
       }
       
-      setResults(assessmentResults);
-      setPreviousScores(prev => [...prev, assessmentResults.overall.score]);
+      // Set results to the original Vertex response
+      setResults(vertexResponse);
+      
+      // Store the overall score for comparison if it exists
+      if (vertexResponse.overall && vertexResponse.overall.score !== undefined) {
+        setPreviousScores(prev => [...prev, vertexResponse.overall.score]);
+      }
       
       // Increment attempts
       setAttempts(prev => prev + 1);
@@ -432,58 +361,74 @@ function LanguageAssessment({ language, onComplete, onExit }) {
         <div className="space-y-6">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center h-24 w-24 rounded-full bg-blue-50 text-blue-600 mb-4">
-              <span className="text-4xl font-bold">{results.overall.score}</span>
+              <span className="text-4xl font-bold">{results.overall?.score || 0}</span>
             </div>
             <h2 className="text-2xl font-bold text-gray-800">
-              {results.overall.score >= 70 ? 'Great job!' : 'Good effort!'}
+              {results.overall?.score >= 70 ? 'Great job!' : 'Good effort!'}
             </h2>
             <p className="text-gray-600">
-              Your CEFR level: <span className="font-semibold">{mapScoreToCEFR(results.overall.score)}</span>
+              Your CEFR level: <span className="font-semibold">{mapScoreToCEFR(results.overall?.score || 0)}</span>
             </p>
             {showScoreComparison()}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="bg-white p-4 rounded-lg border border-gray-200">
-              <h3 className="font-medium text-gray-800 mb-2">Pronunciation</h3>
+              <h3 className="font-medium text-gray-800 mb-2">Completeness</h3>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-600">Score</span>
-                <span className="font-bold text-blue-600">{results.pronunciation.score}/100</span>
+                <span className="font-bold text-blue-600">{results.completeness?.score || 0}/100</span>
               </div>
-              <p className="text-sm text-gray-700">{results.pronunciation.feedback}</p>
+              <p className="text-sm text-gray-700">{results.completeness?.feedback || "No completeness assessment available"}</p>
             </div>
 
             <div className="bg-white p-4 rounded-lg border border-gray-200">
               <h3 className="font-medium text-gray-800 mb-2">Fluency</h3>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-600">Score</span>
-                <span className="font-bold text-blue-600">{results.fluency.score}/100</span>
+                <span className="font-bold text-blue-600">{results.fluency?.score || 0}/100</span>
               </div>
-              <p className="text-sm text-gray-700">{results.fluency.feedback}</p>
+              <p className="text-sm text-gray-700">{results.fluency?.feedback || "No fluency assessment available"}</p>
             </div>
 
             <div className="bg-white p-4 rounded-lg border border-gray-200">
-              <h3 className="font-medium text-gray-800 mb-2">Comprehension</h3>
+              <h3 className="font-medium text-gray-800 mb-2">Proficiency</h3>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-600">Score</span>
-                <span className="font-bold text-blue-600">{results.comprehension.score}/100</span>
+                <span className="font-bold text-blue-600">{results.proficiency?.score || 0}/100</span>
               </div>
-              <p className="text-sm text-gray-700">{results.comprehension.feedback}</p>
+              <p className="text-sm text-gray-700">{results.proficiency?.feedback || "No proficiency assessment available"}</p>
             </div>
 
-            <div className="bg-white p-4 rounded-lg border border-gray-200">
-              <h3 className="font-medium text-gray-800 mb-2">Vocabulary</h3>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-600">Score</span>
-                <span className="font-bold text-blue-600">{results.vocabulary.score}/100</span>
-              </div>
-              <p className="text-sm text-gray-700">{results.vocabulary.feedback}</p>
+            <div className="bg-white p-4 rounded-lg border border-gray-200 col-span-1">
+              <h3 className="font-medium text-gray-800 mb-2">Language Match</h3>
+              <p className="text-sm text-gray-700">
+                {results.languageOrTextMismatch 
+                  ? "The language spoken doesn't match the expected language or the text was not read correctly."
+                  : "The language spoken matches the expected language."}
+              </p>
             </div>
           </div>
 
           <div className="bg-blue-50 p-4 rounded-lg">
             <h3 className="font-medium text-gray-800 mb-2">Overall Assessment</h3>
-            <p className="text-gray-700">{results.overall.feedback}</p>
+            <div className="space-y-2">
+              {results.overall?.areasForImprovement && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700">Areas for Improvement:</h4>
+                  <p className="text-gray-700">{results.overall.areasForImprovement}</p>
+                </div>
+              )}
+              {results.overall?.strengths && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700">Strengths:</h4>
+                  <p className="text-gray-700">{results.overall.strengths}</p>
+                </div>
+              )}
+              {!results.overall?.areasForImprovement && !results.overall?.strengths && (
+                <p className="text-gray-700">No detailed assessment available.</p>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-between pt-4">

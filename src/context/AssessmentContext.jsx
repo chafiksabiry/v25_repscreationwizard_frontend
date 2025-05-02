@@ -107,7 +107,7 @@ export const AssessmentProvider = ({ children }) => {
   ];
   
   // Save a language assessment result
-  const saveLanguageAssessment = async (language, proficiency, results) => {
+  const saveLanguageAssessment = async (language, proficiency, results, iso639_1) => {
     // Get the agent ID from localStorage/auth utils - this is critical for saving
     const agentId = getAgentId();
     
@@ -126,7 +126,9 @@ export const AssessmentProvider = ({ children }) => {
         ...prev,
         languages: {
           ...prev.languages,
-          [language]: results
+          [language]: {
+            ...results,
+          }
         }
       }));
       
@@ -136,6 +138,9 @@ export const AssessmentProvider = ({ children }) => {
           // Check if we're in demo/development mode
           const isDemoMode = import.meta.env.VITE_RUN_MODE === 'standalone' || 
                            !import.meta.env.PROD;
+          
+          // Create a new result object without languageOrTextMismatch
+          const { languageOrTextMismatch, ...resultsToSend } = results;
                            
           // If in demo mode and the endpoint might not exist, log instead of throwing error
           if (isDemoMode) {
@@ -143,7 +148,8 @@ export const AssessmentProvider = ({ children }) => {
               agentId,
               language,
               proficiency,
-              results
+              iso639_1,
+              results: resultsToSend
             });
             
             // Try the API call anyway, but don't fail if it's not available
@@ -152,7 +158,8 @@ export const AssessmentProvider = ({ children }) => {
               const response = await axios.post(`${import.meta.env.VITE_API_URL}/profiles/${agentId}/language-assessment`, {
                 language,
                 proficiency,
-                results
+                iso639_1,
+                results: resultsToSend
               });
               console.log('Assessment saved to backend:', response.data);
             } catch (apiError) {
@@ -165,14 +172,22 @@ export const AssessmentProvider = ({ children }) => {
             const response = await axios.post(`${import.meta.env.VITE_API_URL}/${agentId}/language-assessment`, {
               language,
               proficiency,
-              results
+              iso639_1,
+              results: resultsToSend
             });
             console.log('Assessment saved to backend:', response.data);
           }
         } catch (apiError) {
           console.error('Error communicating with backend API:', apiError);
-          // Show error but don't prevent continuing since local state is updated
-          setError('Warning: Results saved locally but could not be sent to server');
+          // Check if this is the specific error about language not found by ISO code
+          if (apiError.response && apiError.response.data && 
+              apiError.response.data.message && 
+              apiError.response.data.message.includes('not found in user\'s profile')) {
+            setError(`The language with ISO code ${iso639_1} needs to be added to your profile first.`);
+          } else {
+            // Generic error
+            setError('Warning: Results saved locally but could not be sent to server');
+          }
         }
       } else {
         console.warn('No API URL configured. Assessment results saved only locally.');

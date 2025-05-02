@@ -41,11 +41,14 @@ function LanguageAssessmentPage() {
     // Get the language from the URL parameter
     const languageParam = decodedLanguage;
     
+    // Get the ISO code for the language
+    const isoCode = getLanguageIsoCode(languageParam) || results.language_code;
+    
     // Get the CEFR level from the results for proficiency
     const proficiency = mapScoreToCEFR(results.overall.score);
     
     // Save results to the assessment context with the required parameters
-    const success = await saveLanguageAssessment(languageParam, proficiency, results);
+    const success = await saveLanguageAssessment(languageParam, proficiency, results, isoCode);
     
     if (success) {
       setNotification({
