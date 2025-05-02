@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { getPassage } from '../utils/passageManager';
 import { analyzeRecordingVertex, uploadRecording } from '../lib/api/vertex';
 import OpenAI from 'openai';
-import { useProfile } from '../hooks/useProfile';
+import { useAssessment } from '../context/AssessmentContext';
 
 const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
@@ -10,7 +10,7 @@ const openai = new OpenAI({
 });
 
 function LanguageAssessment({ language, onComplete, onExit }) {
-  const { profile, loading: profileLoading, error: profileError, updateLanguageAssessment } = useProfile();
+  const { loading: assessmentLoading, error: assessmentError } = useAssessment();
   const [recording, setRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);

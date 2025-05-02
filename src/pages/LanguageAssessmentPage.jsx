@@ -55,14 +55,17 @@ function LanguageAssessmentPage() {
         message: 'Assessment results saved successfully!',
         type: 'success'
       });
+      
+      // Set a brief timeout to allow the user to see the success notification before redirecting
+      setTimeout(() => {
+        returnToParentApp();
+      }, 2000);
     } else {
       setNotification({
         message: 'Results saved locally but could not be sent to server',
         type: 'warning'
       });
     }
-    
-    // Optional: navigate or show completion screen
   };
   
   // Decode URI component in case the language contains special characters

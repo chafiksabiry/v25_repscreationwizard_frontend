@@ -37,7 +37,13 @@ function ContactCenterAssessmentPage() {
   
   const handleComplete = (results) => {
     console.log('Assessment completed:', results);
-    // You can add navigation or other logic after completion
+    
+    // Show success message (if we had a notification component)
+    
+    // Set a brief timeout to allow the user to see any results before redirecting
+    setTimeout(() => {
+      returnToParentApp();
+    }, 2000);
   };
   
   return (

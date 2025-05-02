@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
-import { getAgentId } from '../utils/authUtils';
+import { getAgentId, initializeAuth, returnToParentApp } from '../utils/authUtils';
 
 const AssessmentContext = createContext();
 
@@ -19,42 +19,13 @@ export const AssessmentProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [currentAssessmentType, setCurrentAssessmentType] = useState(null);
   
-  // Initialize auth data from localStorage on mount
+  // Initialize auth data on mount
   useEffect(() => {
-    const storedUserId = localStorage.getItem('userId');
-    const storedToken = localStorage.getItem('token');
-    const storedReturnUrl = localStorage.getItem('returnUrl');
+    const { userId: authUserId, token: authToken, returnUrl: authReturnUrl } = initializeAuth();
     
-    if (storedUserId) setUserId(storedUserId);
-    if (storedToken) setToken(storedToken);
-    if (storedReturnUrl) setReturnUrl(storedReturnUrl);
-    
-    // In standalone mode, use the env variables
-    if (import.meta.env.VITE_RUN_MODE === 'standalone') {
-      setUserId(import.meta.env.VITE_STANDALONE_USER_ID || storedUserId);
-      setToken(import.meta.env.VITE_STANDALONE_TOKEN || storedToken);
-    }
-    
-    // We can also check URL parameters for these values
-    const params = new URLSearchParams(window.location.search);
-    const urlUserId = params.get('userId');
-    const urlToken = params.get('token');
-    const urlReturnUrl = params.get('returnUrl');
-    
-    if (urlUserId) {
-      setUserId(urlUserId);
-      localStorage.setItem('userId', urlUserId);
-    }
-    
-    if (urlToken) {
-      setToken(urlToken);
-      localStorage.setItem('token', urlToken);
-    }
-    
-    if (urlReturnUrl) {
-      setReturnUrl(urlReturnUrl);
-      localStorage.setItem('returnUrl', urlReturnUrl);
-    }
+    if (authUserId) setUserId(authUserId);
+    if (authToken) setToken(authToken);
+    if (authReturnUrl) setReturnUrl(authReturnUrl);
   }, []);
   
   // Configure axios with the authentication token
@@ -285,7 +256,7 @@ export const AssessmentProvider = ({ children }) => {
   
   // Handle exit/return to parent application
   const exitToParentApp = () => {
-    window.location.href = returnUrl;
+    returnToParentApp();
   };
   
   return (

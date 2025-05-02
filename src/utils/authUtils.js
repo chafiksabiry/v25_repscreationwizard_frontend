@@ -3,87 +3,100 @@
  */
 
 /**
- * Initialize authentication from multiple possible sources
- * Priority: URL params > localStorage > env variables
+ * Get a cookie value by name
  */
-export const initializeAuth = () => {
-  // Get auth from localStorage
-  const storedUserId = localStorage.getItem('userId');
-  const storedToken = localStorage.getItem('token');
-  const storedReturnUrl = localStorage.getItem('returnUrl');
-  const storedAgentId = localStorage.getItem('agentId');
-  
-  // Get auth from URL params
-  const params = new URLSearchParams(window.location.search);
-  const urlUserId = params.get('userId');
-  const urlToken = params.get('token');
-  const urlReturnUrl = params.get('returnUrl');
-  const urlAgentId = params.get('agentId');
-  
-  // Determine final values (URL params take precedence)
-  const userId = urlUserId || storedUserId || import.meta.env.VITE_STANDALONE_USER_ID;
-  const token = urlToken || storedToken || import.meta.env.VITE_STANDALONE_TOKEN;
-  const returnUrl = urlReturnUrl || storedReturnUrl || '/';
-  const agentId = urlAgentId || storedAgentId || import.meta.env.VITE_STANDALONE_AGENT_ID; // Default to userId if agentId not specified
-  
-  // Store in localStorage for persistence
-  if (userId) localStorage.setItem('userId', userId);
-  if (token) localStorage.setItem('token', token);
-  if (returnUrl) localStorage.setItem('returnUrl', returnUrl);
-  if (agentId) localStorage.setItem('agentId', agentId);
-  
-  // Also remove from URL if they were there (cleaner URLs)
-  if (urlUserId || urlToken || urlReturnUrl || urlAgentId) {
-    const newParams = new URLSearchParams(window.location.search);
-    if (urlUserId) newParams.delete('userId');
-    if (urlToken) newParams.delete('token');
-    if (urlReturnUrl) newParams.delete('returnUrl');
-    if (urlAgentId) newParams.delete('agentId');
-    
-    const newUrl = `${window.location.pathname}${newParams.toString() ? `?${newParams.toString()}` : ''}`;
-    window.history.replaceState({}, '', newUrl);
-  }
-  
-  return { userId, token, returnUrl, agentId };
+const getCookie = (name) => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
 };
 
 /**
- * Get the agent ID from storage
- * This is needed for saving assessment results to the backend
+ * Set a cookie with a name and value
+ */
+const setCookie = (name, value, days = 7) => {
+  const date = new Date();
+  date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+  const expires = `; expires=${date.toUTCString()}`;
+  document.cookie = `${name}=${value}${expires}; path=/`;
+};
+
+/**
+ * Initialize authentication from the appropriate source based on RUN_MODE
+ * - In standalone mode: get values from .env
+ * - In in-app mode: get values only from cookies
+ */
+export const initializeAuth = () => {
+  const isStandaloneMode = import.meta.env.VITE_RUN_MODE === 'standalone';
+  
+  if (isStandaloneMode) {
+    // In standalone mode, get values from .env
+    const userId = import.meta.env.VITE_STANDALONE_USER_ID;
+    const token = import.meta.env.VITE_STANDALONE_TOKEN;
+    const agentId = import.meta.env.VITE_STANDALONE_AGENT_ID;
+    const returnUrl = import.meta.env.VITE_STANDALONE_RETURN_URL;
+    
+    // Store in cookies for consistency
+    if (userId) setCookie('userId', userId);
+    if (token) setCookie('token', token);
+    if (agentId) setCookie('agentId', agentId);
+    if (returnUrl) setCookie('returnUrl', returnUrl);
+    
+    return { userId, token, returnUrl, agentId };
+  } else {
+    // In in-app mode, get values only from cookies
+    const userId = getCookie('userId');
+    const token = getCookie('token');
+    const returnUrl = getCookie('returnUrl') || '/';
+    const agentId = getCookie('agentId');
+    
+    return { userId, token, returnUrl, agentId };
+  }
+};
+
+/**
+ * Get the agent ID from cookies or env variables based on mode
  */
 export const getAgentId = () => {
-  const agentId = localStorage.getItem('agentId');
-  const userId = localStorage.getItem('userId');
+  const isStandaloneMode = import.meta.env.VITE_RUN_MODE === 'standalone';
   
-  // If no specific agentId is set, fall back to userId
-  // (in many cases they might be the same)
-  return agentId || userId || import.meta.env.VITE_STANDALONE_USER_ID;
+  if (isStandaloneMode) {
+    return import.meta.env.VITE_STANDALONE_AGENT_ID;
+  } else {
+    return getCookie('agentId');
+  }
 };
 
 /**
  * Check if user is authenticated
  */
 export const isAuthenticated = () => {
-  const userId = localStorage.getItem('userId');
-  const token = localStorage.getItem('token');
+  const isStandaloneMode = import.meta.env.VITE_RUN_MODE === 'standalone';
   
-  // In standalone mode, consider authenticated if either env vars are set
-  if (import.meta.env.VITE_RUN_MODE === 'standalone') {
+  if (isStandaloneMode) {
+    // In standalone mode, consider authenticated if env vars are set
     return Boolean(
-      userId || token || import.meta.env.VITE_STANDALONE_USER_ID || import.meta.env.VITE_STANDALONE_TOKEN
+      import.meta.env.VITE_STANDALONE_USER_ID || import.meta.env.VITE_STANDALONE_TOKEN
     );
+  } else {
+    // In in-app mode, require both userId and token from cookies
+    return Boolean(getCookie('userId') && getCookie('token'));
   }
-  
-  // In normal mode, require both userId and token
-  return Boolean(userId && token);
 };
 
 /**
  * Return to parent application
  */
 export const returnToParentApp = () => {
-  const returnUrl = localStorage.getItem('returnUrl') || '/';
-  window.location.href = returnUrl;
+  const isStandaloneMode = import.meta.env.VITE_RUN_MODE === 'standalone';
+  
+  if (isStandaloneMode) {
+    window.location.href = import.meta.env.VITE_STANDALONE_RETURN_URL || '/';
+  } else {
+    const returnUrl = getCookie('returnUrl') || '/';
+    window.location.href = returnUrl;
+  }
 };
 
 /**
