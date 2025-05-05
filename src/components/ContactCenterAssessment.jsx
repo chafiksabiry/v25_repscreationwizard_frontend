@@ -187,34 +187,39 @@ function ContactCenterAssessment({ skillId: propSkillId, category: propCategory,
     try {
       // Upload the audio file to Google Cloud Storage
       const formData = new FormData();
-      const file = new File([audioBlob], `audio-${Date.now()}.opus`, { type: "audio/opus" });
+      const file = new File([audioBlob], `audio-${Date.now()}.webm`, { type: "audio/webm" });
       formData.append('file', file);
-      formData.append('destinationName', `audio-${currentSkill?.name || 'skill'}-${Date.now()}.opus`);
+      formData.append('destinationName', `audio-${currentSkill?.name || 'skill'}-${Date.now()}.webm`);
       
       const uploadResponse = await uploadRecording(formData);
       console.log('Audio upload response:', uploadResponse);
       
-      // Initiating the transcription API endpoint
-      const data = {
-        "fileUri": uploadResponse.data.fileUri,
-        "scenario": scenario,
-        "languageCode": "en-US"
+      // Use the dedicated transcription API endpoint
+      const fileUri = uploadResponse.data.fileUri;
+      if (!fileUri) {
+        throw new Error('No fileUri received from upload');
+      }
+      
+      // Create the request payload for transcription
+      const transcriptionData = {
+        fileUri: fileUri,
+        languageCode: "en-US"
       };
       
-      // Here we would normally call a dedicated transcription API
-      // But for now, we'll use the analyzing API which includes transcription
-      const analysisResponse = await analyzeContentCenterSkill(data);
+      console.log('Sending transcription request with data:', transcriptionData);
+      const transcriptionResponse = await transcribeLongAudio(transcriptionData);
+      console.log('Transcription response:', transcriptionResponse);
       
       // Set the transcribed text in the response field
-      if (analysisResponse.data.transcription) {
-        setResponse(analysisResponse.data.transcription);
+      if (transcriptionResponse && transcriptionResponse.transcription) {
+        setResponse(transcriptionResponse.transcription);
       } else {
-        // Fallback if transcription isn't included in the response
+        // Fallback if transcription isn't available
         setResponse("Audio transcription not available. Please type your response or try recording again.");
       }
     } catch (error) {
       console.error('Error transcribing audio:', error);
-      setError('Failed to transcribe audio. Please try again or type your response.');
+      setError(`Failed to transcribe audio: ${error.message || 'Unknown error'}`);
     } finally {
       setTranscribing(false);
     }
