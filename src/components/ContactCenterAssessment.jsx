@@ -5,6 +5,27 @@ import OpenAI from 'openai';
 import { transcribeLongAudio } from '../lib/api/speechToText';
 import { uploadRecording, analyzeContentCenterSkill } from '../lib/api/vertex';
 
+// Add style for notifications
+const notificationStyles = `
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  @keyframes fadeOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-10px); }
+  }
+  
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out forwards;
+  }
+  
+  .animate-fadeOut {
+    animation: fadeOut 0.3s ease-in forwards;
+  }
+`;
+
 const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
   dangerouslyAllowBrowser: true
@@ -28,6 +49,20 @@ function ContactCenterAssessment({ skillId: propSkillId, category: propCategory,
     setLoading,
     setError
   } = useAssessment();
+  
+  // Add style element to document head when component mounts
+  useEffect(() => {
+    const styleElement = document.createElement('style');
+    styleElement.textContent = notificationStyles;
+    document.head.appendChild(styleElement);
+    
+    return () => {
+      // Clean up when component unmounts
+      if (document.head.contains(styleElement)) {
+        document.head.removeChild(styleElement);
+      }
+    };
+  }, []);
   
   // Use props if provided, otherwise use from params
   const skillId = propSkillId || params.skillId;
@@ -188,6 +223,7 @@ function ContactCenterAssessment({ skillId: propSkillId, category: propCategory,
   // Format assessment results for saving
   const formatAssessmentForSaving = (feedback) => {
     return {
+      skillId: currentSkill.id,
       category: currentSkill.category,
       skill: currentSkill.name || formatSkillName(currentSkill.id),
       proficiency: mapScoreToProficiency(feedback.score),
@@ -346,9 +382,33 @@ function ContactCenterAssessment({ skillId: propSkillId, category: propCategory,
       );
       
       if (success) {
-        // Show success message
-        setError(null); // Clear any existing errors
-        // Could add a success notification here
+        // Clear any existing errors
+        setError(null);
+        
+        // Show success message as a toast/notification
+        // This could be a temporary state in this component
+        // or a centralized notification system
+        const notificationDiv = document.createElement('div');
+        notificationDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg z-50 animate-fadeIn';
+        notificationDiv.textContent = 'Assessment results saved successfully!';
+        document.body.appendChild(notificationDiv);
+        
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+          if (document.body.contains(notificationDiv)) {
+            notificationDiv.classList.add('animate-fadeOut');
+            setTimeout(() => {
+              if (document.body.contains(notificationDiv)) {
+                document.body.removeChild(notificationDiv);
+              }
+            }, 500);
+          }
+        }, 3000);
+        
+        // Call onComplete if it exists
+        if (onComplete) {
+          onComplete(assessmentData);
+        }
       }
     } catch (error) {
       console.error('Error saving results:', error);
@@ -378,15 +438,6 @@ function ContactCenterAssessment({ skillId: propSkillId, category: propCategory,
     setResponse('');
     setResults(null);
     generateScenario();
-  };
-  
-  // Add a new function to handle completion explicitly
-  const handleFinishAssessment = () => {
-    if (results && onComplete) {
-      // Format the results again to ensure proper format
-      const assessmentData = formatAssessmentForSaving(results);
-      onComplete(assessmentData);
-    }
   };
   
   if (!currentSkill) {
@@ -654,15 +705,9 @@ function ContactCenterAssessment({ skillId: propSkillId, category: propCategory,
                 </button>
                 <button
                   onClick={saveResults}
-                  className="flex-1 py-2 px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Save Results
-                </button>
-                <button
-                  onClick={handleFinishAssessment}
                   className="flex-1 py-2 px-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 >
-                  Complete Assessment
+                  Save Results
                 </button>
               </div>
             </div>

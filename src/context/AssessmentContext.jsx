@@ -190,24 +190,30 @@ export const AssessmentProvider = ({ children }) => {
     setError(null);
     
     try {
-      // For local state, we'll continue to use the existing format
-      setAssessmentResults(prev => ({
-        ...prev,
-        contactCenter: {
-          ...prev.contactCenter,
-          [skillId]: {
-            category,
-            ...assessmentData
-          }
-        }
-      }));
+      // For local state, we'll check if this skill already exists
+      setAssessmentResults(prev => {
+        // Create a new copy of the contactCenter state
+        const newContactCenterState = { ...prev.contactCenter };
+        
+        // Update or add the assessment for this skill
+        newContactCenterState[skillId] = {
+          category,
+          ...assessmentData
+        };
+        
+        // Return the updated state
+        return {
+          ...prev,
+          contactCenter: newContactCenterState
+        };
+      });
       
       // Call API to save results to backend using the new format
       if (import.meta.env.VITE_API_URL) {
         try {
           // Use the profiles endpoint with the format expected by the backend
           const response = await axios.post(`${import.meta.env.VITE_API_URL}/profiles/${agentId}/contact-center-assessment`, { 
-            assessment: assessmentData 
+            assessment: assessmentData
           });
           
           console.log('Contact center assessment saved to backend:', response.data);
