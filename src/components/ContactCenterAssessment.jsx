@@ -250,42 +250,59 @@ function ContactCenterAssessment({ skillId: propSkillId, category: propCategory,
   
   // Analyze the response using the Vertex API
   const analyzeWithVertex = async () => {
-    if (!audioBlob && !response.trim()) {
-      setError('Please provide a response or recording before analyzing.');
+    if (!audioBlob) {
+      setError('Please record an audio response before analyzing.');
       return;
     }
     
     setAnalyzing(true);
     try {
-      let analysisResponse;
+      // First transcribe the audio automatically
+      setTranscribing(true);
       
-      // If there's audio, use it for analysis
-      if (audioBlob) {
-        // Upload the audio file
-        const formData = new FormData();
-        const file = new File([audioBlob], `audio-${Date.now()}.opus`, { type: "audio/opus" });
-        formData.append('file', file);
-        formData.append('destinationName', `audio-${currentSkill?.name || 'skill'}-${Date.now()}.opus`);
-        
-        const uploadResponse = await uploadRecording(formData);
-        console.log('Audio upload response:', uploadResponse);
-        
-        // Send for vertex analysis
-        const data = {
-          fileUri: uploadResponse.data.fileUri,
-          scenarioData: scenario
-        };
-        
-        analysisResponse = await analyzeContentCenterSkill(data);
-      } else {
-        // Use text response for analysis
-        const data = {
-          textResponse: response,
-          scenarioData: scenario
-        };
-        
-        analysisResponse = await analyzeContentCenterSkill(data);
+      // Upload the audio file to Google Cloud Storage
+      const formData = new FormData();
+      const file = new File([audioBlob], `audio-${Date.now()}.webm`, { type: "audio/webm" });
+      formData.append('file', file);
+      formData.append('destinationName', `audio-${currentSkill?.name || 'skill'}-${Date.now()}.webm`);
+      
+      const uploadResponse = await uploadRecording(formData);
+      console.log('Audio upload response:', uploadResponse);
+      
+      // Get the file URI
+      const fileUri = uploadResponse.data.fileUri;
+      if (!fileUri) {
+        throw new Error('No fileUri received from upload');
       }
+      
+      // Transcribe the audio
+      const transcriptionData = {
+        fileUri: fileUri,
+        languageCode: "en-US"
+      };
+      
+      console.log('Sending transcription request with data:', transcriptionData);
+      const transcriptionResponse = await transcribeLongAudio(transcriptionData);
+      console.log('Transcription response:', transcriptionResponse);
+      
+      // Set the transcribed text in the response field
+      if (transcriptionResponse && transcriptionResponse.transcription) {
+        setResponse(transcriptionResponse.transcription);
+      } else {
+        setResponse("Audio transcription not available.");
+      }
+      
+      setTranscribing(false);
+      
+      // Now analyze using Vertex API
+      const data = {
+        fileUri: fileUri,
+        scenarioData: scenario,
+        // Include the transcription if it's available
+        textResponse: transcriptionResponse?.transcription || ""
+      };
+      
+      const analysisResponse = await analyzeContentCenterSkill(data);
       
       const feedback = analysisResponse.data;
       console.log('Vertex analysis response:', feedback);
@@ -304,8 +321,6 @@ function ContactCenterAssessment({ skillId: propSkillId, category: propCategory,
         }
       });
       
-      // Note: We're not saving results automatically anymore
-      // The user will click "Save Results" button instead
     } catch (error) {
       console.error('Error analyzing with Vertex API:', error);
       setError('Error analyzing your response. Please try again.');
@@ -314,6 +329,7 @@ function ContactCenterAssessment({ skillId: propSkillId, category: propCategory,
       analyzeResponse();
     } finally {
       setAnalyzing(false);
+      setTranscribing(false);
     }
   };
   
@@ -511,16 +527,16 @@ function ContactCenterAssessment({ skillId: propSkillId, category: propCategory,
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Your Response</h3>
                 
                 <div className="space-y-4">
-                  <textarea
-                    value={response}
-                    onChange={handleResponseChange}
-                    placeholder="Type your response to the customer here..."
-                    className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
+                  {/* Conditionally render textarea as read-only if response exists */}
+                  {response ? (
+                    <div className="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg min-h-[8rem]">
+                      <p className="text-gray-700">{response}</p>
+                    </div>
+                  ) : null}
                   
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-500">
-                      {response ? `${response.length} characters` : 'Or record your response'}
+                      {audioBlob ? 'Audio recording ready' : 'Record your response'}
                     </div>
                     
                     <div className="space-x-2">
@@ -547,46 +563,34 @@ function ContactCenterAssessment({ skillId: propSkillId, category: propCategory,
                         <div className="flex items-center gap-2">
                           <audio src={URL.createObjectURL(audioBlob)} controls className="h-10" />
                           <button
-                            onClick={() => setAudioBlob(null)}
+                            onClick={() => {
+                              setAudioBlob(null);
+                              setResponse('');
+                            }}
                             className="text-gray-500 hover:text-gray-700"
                           >
                             Reset
                           </button>
-                          {!transcribing && !response && (
-                            <button
-                              onClick={transcribeAudio}
-                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                            >
-                              Transcribe Audio
-                            </button>
-                          )}
-                          {transcribing && (
-                            <span className="flex items-center text-indigo-600">
-                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              Transcribing...
-                            </span>
-                          )}
                         </div>
                       )}
                     </div>
                   </div>
                   
-                  <div className="flex justify-end">
-                    <button
-                      onClick={analyzeWithVertex}
-                      disabled={analyzing || transcribing}
-                      className={`py-2 px-6 rounded-lg ${
-                        analyzing || transcribing
-                          ? 'bg-gray-400 cursor-not-allowed' 
-                          : 'bg-purple-600 hover:bg-purple-700'
-                      } text-white transition-colors`}
-                    >
-                      {analyzing ? 'Analyzing...' : 'Submit Response'}
-                    </button>
-                  </div>
+                  {audioBlob && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={analyzeWithVertex}
+                        disabled={analyzing || transcribing}
+                        className={`py-2 px-6 rounded-lg ${
+                          analyzing || transcribing
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : 'bg-purple-600 hover:bg-purple-700'
+                        } text-white transition-colors`}
+                      >
+                        {analyzing ? 'Analyzing...' : transcribing ? 'Transcribing...' : 'Analyze Response'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
