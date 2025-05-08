@@ -94,7 +94,7 @@ export const returnToParentApp = () => {
   if (isStandaloneMode) {
     window.location.href = import.meta.env.VITE_STANDALONE_RETURN_URL || '/';
   } else {
-    const returnUrl = getCookie('returnUrl') || '/';
+    const returnUrl = getCookie('returnUrl') || import.meta.env.VITE_RETURN_URL || '/';
     window.location.href = returnUrl;
   }
 };
