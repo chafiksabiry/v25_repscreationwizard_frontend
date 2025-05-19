@@ -64,7 +64,7 @@ export const getAgentId = () => {
   if (isStandaloneMode) {
     return import.meta.env.VITE_STANDALONE_AGENT_ID;
   } else {
-    return getCookie('agentId');
+    return localStorage.getItem('agentId');
   }
 };
 
@@ -94,7 +94,7 @@ export const returnToParentApp = () => {
   if (isStandaloneMode) {
     window.location.href = import.meta.env.VITE_STANDALONE_RETURN_URL || '/';
   } else {
-    const returnUrl = getCookie('returnUrl') || import.meta.env.VITE_RETURN_URL || '/';
+    const returnUrl = import.meta.env.VITE_RETURN_URL || '/';
     window.location.href = returnUrl;
   }
 };
